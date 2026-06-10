@@ -5,6 +5,10 @@ terraform {
     google = { source = "hashicorp/google", version = "~> 5.0" }
   }
 }
+resource "random_id" "suffix" {
+  byte_length = 4
+}
+
 
 locals {
   required_labels = {
@@ -15,9 +19,10 @@ locals {
   }
 
   effective_labels = merge(var.labels, local.required_labels)
-  bucket_name      = "${var.project_label}-${var.environment}-${var.bucket_name_suffix}"
-  keyring_id       = "${var.bucket_name_suffix}-ring1"
-  key_id           = "${var.bucket_name_suffix}-key1"
+  suffix           =  var.suffix != "" ? var.suffix : random_id.suffix.hex
+  bucket_name      = "${var.project_label}-${var.environment}-${local.suffix}"
+  keyring_id       = "${local.bucket_name.id}-ring1"
+  key_id           = "${local.bucket_name.id}-key1"
 }
 
 data "google_storage_project_service_account" "gcs" {
