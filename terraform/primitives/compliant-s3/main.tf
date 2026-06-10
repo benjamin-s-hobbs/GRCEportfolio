@@ -73,3 +73,42 @@ resource "aws_s3_bucket_public_access_block" "primary" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
+
+# AU-3 / AU-6: Content of audit records + audit review.
+resource "aws_s3_bucket" "log" {
+  bucket = local.log_name
+}
+
+resource "aws_s3_bucket_ownership_controls" "log" {
+  bucket = aws_s3_bucket.log.id
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+resource "aws_s3_bucket_acl" "log" {
+  depends_on = [aws_s3_bucket_ownership_controls.log]
+  bucket     = aws_s3_bucket.log.id
+  acl        = "log-delivery-write"
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "log" {
+  bucket = aws_s3_bucket.log.id
+  rule {
+    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "log" {
+  bucket                  = aws_s3_bucket.log.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_logging" "primary" {
+  bucket        = aws_s3_bucket.primary.id
+  target_bucket = aws_s3_bucket.log.id
+  target_prefix = "access-logs/"
+}
