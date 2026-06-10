@@ -48,11 +48,6 @@ variable "retention_days" {
     error_message = "retention_days must be >= 365 when environment == \"prod\"."
   }
 }
-variable "suffix" {
-  type        = string
-  description = "Optional suffix for the bucket name. If not provided, a random suffix will be generated."
-  default     = ""
-}
 
 variable "labels" {
   type        = map(string)
