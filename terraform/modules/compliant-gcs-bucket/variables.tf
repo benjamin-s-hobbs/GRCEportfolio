@@ -48,14 +48,10 @@ variable "retention_days" {
     error_message = "retention_days must be >= 365 when environment == \"prod\"."
   }
 }
-
-variable "bucket_name_suffix" {
+variable "suffix" {
   type        = string
-  description = "Globally-unique suffix appended to the bucket name."
-  validation {
-    condition     = can(regex("^[a-z0-9-]{3,30}$", var.bucket_name_suffix))
-    error_message = "bucket_name_suffix must be 3-30 lowercase alphanumerics or hyphens."
-  }
+  description = "Optional suffix for the bucket name. If not provided, a random suffix will be generated."
+  default     = ""
 }
 
 variable "labels" {
