@@ -7,14 +7,14 @@ terraform {
 }
 
 provider "google" {
-  project = "your-gcp-project"
+  project = "civic-access-392521"
   region  = "us-central1"
 }
 
 module "data_bucket" {
   source = "../../modules/compliant-gcs-bucket"
 
-  gcp_project        = "your-gcp-project"
+  gcp_project        = "civic-access-392521"
   project_label      = "cgep-lab"
   environment        = "prod"
   retention_days     = 365

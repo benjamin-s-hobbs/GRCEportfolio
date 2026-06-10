@@ -16,8 +16,8 @@ locals {
 
   effective_labels = merge(var.labels, local.required_labels)
   bucket_name      = "${var.project_label}-${var.environment}-${var.bucket_name_suffix}"
-  keyring_id       = "${var.bucket_name_suffix}-ring"
-  key_id           = "${var.bucket_name_suffix}-key"
+  keyring_id       = "${var.bucket_name_suffix}-ring1"
+  key_id           = "${var.bucket_name_suffix}-key1"
 }
 
 data "google_storage_project_service_account" "gcs" {
