@@ -60,3 +60,6 @@ variable "bucket_name_suffix" {
   validation {
     condition     = can(regex("^[a-z0-9-]{3,30}$", var.bucket_name_suffix))
     error_message = "bucket_name_suffix must be 3-30 lowercase alphanumerics or hyphens."
+
+  }
+}
