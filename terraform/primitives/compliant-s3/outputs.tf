@@ -10,3 +10,4 @@ output "encryption_algorithm" {
     rule.apply_server_side_encryption_by_default[0].sse_algorithm
   ])
 }
+
