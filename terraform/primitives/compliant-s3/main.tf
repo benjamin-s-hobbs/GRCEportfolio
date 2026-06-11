@@ -1,4 +1,5 @@
 # main.tf
+# This is a simple S3 bucket configuration for a compliant environment.
 terraform {
   required_version = ">= 1.6"
   required_providers {
@@ -10,9 +11,7 @@ terraform {
 provider "aws" {
   region = "us-east-1"
 
-  # CM-6: Configuration settings, required compliance tags applied to every
-  # taggable resource by default. Removes the chance of forgetting them.
-  default_tags {
+    default_tags {
     tags = {
       Project         = var.project_name
       Environment     = var.environment
@@ -112,3 +111,4 @@ resource "aws_s3_bucket_logging" "primary" {
   target_bucket = aws_s3_bucket.log.id
   target_prefix = "access-logs/"
 }
+
