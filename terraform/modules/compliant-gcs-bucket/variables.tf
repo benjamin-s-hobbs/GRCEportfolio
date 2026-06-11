@@ -49,17 +49,17 @@ variable "retention_days" {
   }
 }
 
-variable "labels" {
-  type        = map(string)
-  description = "Optional additional labels. Required compliance labels are merged on top."
-  default     = {}
-}
 variable "bucket_name_suffix" {
   type        = string
   description = "Globally-unique suffix appended to the bucket name."
   validation {
     condition     = can(regex("^[a-z0-9-]{3,30}$", var.bucket_name_suffix))
     error_message = "bucket_name_suffix must be 3-30 lowercase alphanumerics or hyphens."
-
   }
+}
+
+variable "labels" {
+  type        = map(string)
+  description = "Optional additional labels. Required compliance labels are merged on top."
+  default     = {}
 }

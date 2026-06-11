@@ -4,8 +4,6 @@ terraform {
   required_providers {
     google = { source = "hashicorp/google", version = "~> 5.0" }
   }
-
-  
 }
 
 locals {
@@ -17,9 +15,9 @@ locals {
   }
 
   effective_labels = merge(var.labels, local.required_labels)
-  data_bucket_name      = "${var.project_label}-${var.environment}-${var.bucket_name_suffix}"
-  keyring_id       = "${var.bucket_name_suffix}-ring2"
-  key_id           = "${var.bucket_name_suffix}-key1"
+  bucket_name      = "${var.project_label}-${var.environment}-${var.bucket_name_suffix}"
+  keyring_id       = "${var.bucket_name_suffix}-ring"
+  key_id           = "${var.bucket_name_suffix}-key"
 }
 
 data "google_storage_project_service_account" "gcs" {
@@ -51,8 +49,8 @@ resource "google_kms_crypto_key_iam_member" "gcs_encrypter" {
 }
 
 # AC-3 + SC-28 + CM-6 + AU-11 in one resource declaration.
-resource "google_storage_bucket" "data_bucket" {
-  name     = local.data_bucket_name
+resource "google_storage_bucket" "bucket" {
+  name     = local.bucket_name
   project  = var.gcp_project
   location = var.location
 
