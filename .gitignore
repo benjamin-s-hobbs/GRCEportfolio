@@ -19,3 +19,5 @@ crash.log
 # Secrets and tfvars (commit *.tfvars.example only)
 *.tfvars
 !*.tfvars.example
+*.pub
+*.decoded
