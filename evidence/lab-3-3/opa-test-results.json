@@ -1,0 +1,82 @@
+[
+  {
+    "location": {
+      "file": "policies/tests/ac3_no_public_test.rego",
+      "row": 41,
+      "col": 1
+    },
+    "package": "data.compliance.ac3_test",
+    "name": "test_public_bucket_fails",
+    "duration": 2737825
+  },
+  {
+    "location": {
+      "file": "policies/tests/sc28_encryption_test.rego",
+      "row": 25,
+      "col": 1
+    },
+    "package": "data.compliance.sc28_test",
+    "name": "test_compliant_passes",
+    "duration": 6686961
+  },
+  {
+    "location": {
+      "file": "policies/tests/ac3_no_public_test.rego",
+      "row": 46,
+      "col": 1
+    },
+    "package": "data.compliance.ac3_test",
+    "name": "test_open_management_port_fails",
+    "duration": 8014173
+  },
+  {
+    "location": {
+      "file": "policies/tests/ac3_no_public_test.rego",
+      "row": 37,
+      "col": 1
+    },
+    "package": "data.compliance.ac3_test",
+    "name": "test_compliant_bucket_passes",
+    "duration": 12283912
+  },
+  {
+    "location": {
+      "file": "policies/tests/sc28_encryption_test.rego",
+      "row": 29,
+      "col": 1
+    },
+    "package": "data.compliance.sc28_test",
+    "name": "test_noncompliant_fails",
+    "duration": 11726907
+  },
+  {
+    "location": {
+      "file": "policies/tests/cm6_required_tags_test.rego",
+      "row": 35,
+      "col": 1
+    },
+    "package": "data.compliance.cm6_test",
+    "name": "test_complete_labels_pass",
+    "duration": 11901309
+  },
+  {
+    "location": {
+      "file": "policies/tests/cm6_required_tags_test.rego",
+      "row": 45,
+      "col": 1
+    },
+    "package": "data.compliance.cm6_test",
+    "name": "test_no_labels_fail",
+    "duration": 13201521
+  },
+  {
+    "location": {
+      "file": "policies/tests/cm6_required_tags_test.rego",
+      "row": 39,
+      "col": 1
+    },
+    "package": "data.compliance.cm6_test",
+    "name": "test_partial_labels_fail",
+    "duration": 13491223
+  }
+]
