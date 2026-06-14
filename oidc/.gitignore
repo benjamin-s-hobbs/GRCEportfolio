@@ -1,4 +1,5 @@
 # Terraform local state and plans
+*.*/.terraform/*.*
 *.*/.terraform/
 .terraform.lock.hcl
 *.tfstate
