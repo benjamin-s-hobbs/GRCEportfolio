@@ -47,7 +47,7 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         env:
           TF_VAR_project_name: "grc-evidence"
-          TF_VAR_environment: "dev, staging, or prod"
+          TF_VAR_environment: "dev"
           
         run: |
           terraform init -input=false
