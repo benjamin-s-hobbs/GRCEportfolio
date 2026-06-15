@@ -42,10 +42,10 @@ resource "aws_kms_key" "main" {
     Purpose     = "data-encryption"
   }
 }
-
+# KMS key generated:
 resource "aws_kms_alias" "main_alias" {
-  name          = "aws_acme_key"
-  target_key_id = aws_kms_key.main.key_id
+  name          = "alais/aws_acme_key"
+  target_key_id = aws_kms_key.main.id
 }
 resource "aws_s3_bucket" "primary" {
   bucket = local.primary_name
@@ -60,7 +60,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "primary" {
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.main.key_id
+      kms_master_key_id = aws_kms_key.main.id
     }
     bucket_key_enabled = true
   }
@@ -101,12 +101,18 @@ resource "aws_s3_bucket_acl" "log" {
   acl        = "log-delivery-write"
 }
 
+resource "aws_s3_bucket_versioning" "log" {
+  bucket = aws_s3_bucket.log.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
 resource "aws_s3_bucket_server_side_encryption_configuration" "log" {
   bucket = aws_s3_bucket.log.id
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.main.key_id
+      kms_master_key_id = aws_kms_key.main.id
     }
     bucket_key_enabled = true
   }
