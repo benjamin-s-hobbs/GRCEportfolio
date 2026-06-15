@@ -31,6 +31,22 @@ locals {
   log_name         = "${var.project_name}-${var.environment}-logs-${local.effective_suffix}"
 }
 
+resource "aws_kms_key" "main" {
+  description             = "Customer-managed key for encrypting sensitive data"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  
+  tags = {
+    Environment = var.environment
+    Purpose     = "data-encryption"
+  }
+}
+
+resource "aws_kms_alias" "main_alias" {
+  name          = "aws_acme_key"
+  target_key_id = aws_kms_key.main.key_id
+}
+
 resource "aws_s3_bucket" "primary" {
   bucket = local.primary_name
 }
@@ -45,7 +61,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "primary" {
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.bucket.arn
+      kms_master_key_id = aws_kms_key.main.key_id
     }
     bucket_key_enabled = true
   }
@@ -91,7 +107,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "log" {
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.bucket.arn
+      kms_master_key_id = aws_kms_key.main.key_id
     }
     bucket_key_enabled = true
   }
