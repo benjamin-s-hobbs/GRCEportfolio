@@ -1,5 +1,5 @@
 # main.tf
-# This is a simple S3 bucket configuration for a compliant environment.
+
 terraform {
   required_version = ">= 1.6"
   required_providers {
