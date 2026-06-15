@@ -111,7 +111,7 @@ resource "aws_s3_bucket_policy" "vault" {
 
 # AU-3 / AU-6: Content of audit records + audit review.
 resource "aws_s3_bucket" "vault_log" {
-  bucket = local.log_name
+  bucket = local.vault_log.id
 }
 
 resource "aws_s3_bucket_ownership_controls" "vault_log" {
