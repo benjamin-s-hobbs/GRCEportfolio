@@ -50,7 +50,7 @@ resource "aws_kms_key" "main" {
 }
 
 resource "aws_kms_alias" "main_alias" {
-  name          = "aws_acme_key"
+  name          = "alias/aws_acme_key"
   target_key_id = aws_kms_key.main.key_id
 }
 
