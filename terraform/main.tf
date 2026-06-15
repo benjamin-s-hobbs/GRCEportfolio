@@ -66,9 +66,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "primary" {
   }
 }
 
-
-
-
 # CM-6: Versioning preserves prior object states for recovery and audit.
 resource "aws_s3_bucket_versioning" "primary" {
   bucket = aws_s3_bucket.primary.id
