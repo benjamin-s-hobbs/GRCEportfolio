@@ -24,6 +24,25 @@ resource "random_id" "suffix" { byte_length = 4 }
 
 locals {
   vault_name = "${var.project_name}-grc-evidence-vault-${random_id.suffix.hex}"
+  vault_log  = "${var.project_name}-grc-evidence-vault-log-${random_id.suffix.hex}"
+}
+
+
+# KMS- CMEK generated:
+resource "aws_kms_key" "main" {
+  description             = "Customer-managed key for encrypting sensitive data"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  
+  tags = {
+    Environment = "grc-evidence-vault"
+    Purpose     = "data-encryption"
+  }
+}
+
+resource "aws_kms_alias" "main_alias" {
+  name          = "alias/acme_cmek"
+  target_key_id = aws_kms_key.main.id
 }
 
 resource "aws_s3_bucket" "vault" {
@@ -52,7 +71,11 @@ resource "aws_s3_bucket_object_lock_configuration" "vault" {
 resource "aws_s3_bucket_server_side_encryption_configuration" "vault" {
   bucket = aws_s3_bucket.vault.id
   rule {
-    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.main.id
+    }
+    bucket_key_enabled = true
   }
 }
 
@@ -77,6 +100,77 @@ resource "aws_s3_bucket_policy" "vault" {
       Principal = "*"
       Action    = "s3:DeleteBucket"
       Resource  = aws_s3_bucket.vault.arn
+      Condition = {
+        StringNotEquals = {
+          "aws:PrincipalArn" = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+      }
+    }]
+  })
+}
+
+# AU-3 / AU-6: Content of audit records + audit review.
+resource "aws_s3_bucket" "vault_log" {
+  bucket = local.log_name
+}
+
+resource "aws_s3_bucket_ownership_controls" "vault_log" {
+  bucket = aws_s3_bucket.vault_log.id
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+# CM-6: Versioning preserves prior object states for recovery and audit.
+resource "aws_s3_bucket_versioning" "vault_log" {
+  bucket = aws_s3_bucket.vault_log.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+resource "aws_s3_bucket_acl" "vault_log" {
+  depends_on = [aws_s3_bucket_ownership_controls.vault_log]
+  bucket     = aws_s3_bucket.vault_log.id
+  acl        = "log-delivery-write"
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "vault_log" {
+  bucket = aws_s3_bucket.vault_log.id
+rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.main.id
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "vault_log" {
+  bucket                  = aws_s3_bucket.vault_log.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_logging" "vault" {
+  bucket        = aws_s3_bucket.vault.id
+  target_bucket = aws_s3_bucket.vault_log.id
+  target_prefix = "access-logs/"
+}
+
+data "aws_caller_identity" "current" {}
+
+resource "aws_s3_bucket_policy" "vault_log" {
+  bucket = aws_s3_bucket.vault_log.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "DenyBucketDeletion"
+      Effect    = "Deny"
+      Principal = "*"
+      Action    = "s3:DeleteBucket"
+      Resource  = aws_s3_bucket.vault_log.arn
       Condition = {
         StringNotEquals = {
           "aws:PrincipalArn" = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"

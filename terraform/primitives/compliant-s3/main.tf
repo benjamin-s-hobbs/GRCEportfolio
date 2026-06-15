@@ -31,6 +31,22 @@ locals {
   log_name         = "${var.project_name}-${var.environment}-logs-${local.effective_suffix}"
 }
 
+# KMS- CMEK generated:
+resource "aws_kms_key" "main" {
+  description             = "Customer-managed key for encrypting sensitive data"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  
+  tags = {
+    Environment = var.environment
+    Purpose     = "data-encryption"
+  }
+}
+
+resource "aws_kms_alias" "main_alias" {
+  name          = "alias/acme_cmek"
+  target_key_id = aws_kms_key.main.id
+}
 resource "aws_s3_bucket" "primary" {
   bucket = local.primary_name
 }
@@ -40,22 +56,17 @@ resource "aws_s3_bucket" "primary" {
 # switch to KMS-managed keys, covered in a later lab.
 resource "aws_s3_bucket_server_side_encryption_configuration" "primary" {
   bucket = aws_s3_bucket.primary.id
+  # KMS- CMEK added:
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.main.id
     }
+    bucket_key_enabled = true
   }
-
-  # KMS teaser:
-  # rule {
-  #   apply_server_side_encryption_by_default {
-  #     sse_algorithm     = "aws:kms"
-  #     kms_master_key_id = aws_kms_key.bucket.arn
-  #   }
-  #   bucket_key_enabled = true
-  # }
 }
 
+  
 # CM-6: Versioning preserves prior object states for recovery and audit.
 resource "aws_s3_bucket_versioning" "primary" {
   bucket = aws_s3_bucket.primary.id
@@ -85,6 +96,13 @@ resource "aws_s3_bucket_ownership_controls" "log" {
   }
 }
 
+# CM-6: Versioning preserves prior object states for recovery and audit.
+resource "aws_s3_bucket_versioning" "log" {
+  bucket = aws_s3_bucket.log.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
 resource "aws_s3_bucket_acl" "log" {
   depends_on = [aws_s3_bucket_ownership_controls.log]
   bucket     = aws_s3_bucket.log.id
@@ -93,8 +111,12 @@ resource "aws_s3_bucket_acl" "log" {
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "log" {
   bucket = aws_s3_bucket.log.id
-  rule {
-    apply_server_side_encryption_by_default { sse_algorithm = "AES256" }
+rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.main.id
+    }
+    bucket_key_enabled = true
   }
 }
 

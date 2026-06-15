@@ -45,10 +45,13 @@ jobs:
 
       - name: Terraform plan
         working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          TF_PROJECT_NAME: "grc-evidence"
+          TF_ENVIRONMENT: "dev"
         run: |
           terraform init -input=false
           terraform validate
-          terraform plan -out=tfplan -no-color | tee plan.txt
+          terraform plan -input=false -out=tfplan -no-color | tee plan.txt
           terraform show -json tfplan > plan.json
 
       - name: Conftest policy gate
@@ -94,6 +97,7 @@ jobs:
       - name: Copy plan into evidence
         if: always()
         run: |
+          mkdir -p ../evidence
           cp ${{ env.TF_WORKING_DIR }}/plan.json evidence/plan.json
           cp ${{ env.TF_WORKING_DIR }}/plan.txt  evidence/plan.txt
 
