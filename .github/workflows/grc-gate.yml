@@ -14,7 +14,7 @@ permissions:
 env:
   AWS_REGION: us-east-1
   TF_WORKING_DIR: terraform
-
+  
 jobs:
   grc-gate:
     runs-on: ubuntu-latest
@@ -45,10 +45,14 @@ jobs:
 
       - name: Terraform plan
         working-directory: ${{ env.TF_WORKING_DIR }}
+        env:
+          TF_VAR_project_name: "grc-evidence"
+          TF_VAR_environment: "dev, staging, or prod"
+          
         run: |
           terraform init -input=false
           terraform validate
-          terraform plan -out=tfplan -no-color | tee plan.txt
+          terraform plan -input=false -out=tfplan -no-color | tee plan.txt
           terraform show -json tfplan > plan.json
 
       - name: Conftest policy gate
