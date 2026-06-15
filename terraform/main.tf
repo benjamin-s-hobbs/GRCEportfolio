@@ -31,6 +31,7 @@ locals {
   log_name         = "${var.project_name}-${var.environment}-logs-${local.effective_suffix}"
 }
 
+
 resource "aws_kms_key" "main" {
   description             = "Customer-managed key for encrypting sensitive data"
   deletion_window_in_days = 7
@@ -41,27 +42,25 @@ resource "aws_kms_key" "main" {
     Purpose     = "data-encryption"
   }
 }
-
+# KMS key generated:
 resource "aws_kms_alias" "main_alias" {
   name          = "alias/aws_acme_key"
-  target_key_id = aws_kms_key.main.key_id
+  target_key_id = aws_kms_key.main.id
 }
-
 resource "aws_s3_bucket" "primary" {
   bucket = local.primary_name
 }
 
 # SC-28: Protection of information at rest.
-# AES-256 keeps this lab simple. The commented block below shows how you'd
-# switch to KMS-managed keys, covered in a later lab.
+
 resource "aws_s3_bucket_server_side_encryption_configuration" "primary" {
   bucket = aws_s3_bucket.primary.id
 
-  # KMS teaser:
+  # KMS added:
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.main.key_id
+      kms_master_key_id = aws_kms_key.main.id
     }
     bucket_key_enabled = true
   }
@@ -102,12 +101,18 @@ resource "aws_s3_bucket_acl" "log" {
   acl        = "log-delivery-write"
 }
 
+resource "aws_s3_bucket_versioning" "log" {
+  bucket = aws_s3_bucket.log.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
 resource "aws_s3_bucket_server_side_encryption_configuration" "log" {
   bucket = aws_s3_bucket.log.id
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.main.key_id
+      kms_master_key_id = aws_kms_key.main.id
     }
     bucket_key_enabled = true
   }
