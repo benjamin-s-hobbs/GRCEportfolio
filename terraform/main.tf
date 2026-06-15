@@ -44,7 +44,7 @@ resource "aws_kms_key" "main" {
 }
 # KMS key generated:
 resource "aws_kms_alias" "main_alias" {
-  name          = "alais/aws_acme_key"
+  name          = "alias/aws_acme_key"
   target_key_id = aws_kms_key.main.id
 }
 resource "aws_s3_bucket" "primary" {
