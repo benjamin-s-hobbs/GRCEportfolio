@@ -79,3 +79,27 @@ resource "google_service_account_iam_binding" "wif_user" {
     "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/GRCEngClub/cgep-app-starter",
   ]
 }
+
+resource "google_project_iam_audit_config" "storage" {
+  project = var.gcp_project
+  service = "storage.googleapis.com"
+  audit_log_config { log_type = "DATA_READ" }
+  audit_log_config { log_type = "DATA_WRITE" }
+  audit_log_config { log_type = "ADMIN_READ" }
+}
+
+resource "google_project_iam_audit_config" "kms" {
+  project = var.gcp_project
+  service = "cloudkms.googleapis.com"
+  audit_log_config { log_type = "DATA_READ" }
+  audit_log_config { log_type = "DATA_WRITE" }
+  audit_log_config { log_type = "ADMIN_READ" }
+}
+
+resource "google_project_iam_audit_config" "iam" {
+  project = var.gcp_project
+  service = "iam.googleapis.com"
+  audit_log_config { log_type = "ADMIN_READ" }
+  audit_log_config { log_type = "DATA_READ" }
+  audit_log_config { log_type = "DATA_WRITE" }
+}
