@@ -1,0 +1,40 @@
+# terraform/baseline/gcp/main.tf
+# org policy at project level
+terraform {
+  required_version = ">= 1.6"
+  required_providers {
+    google = { source = "hashicorp/google", version = "~> 5.0" }
+  }
+}
+
+provider "google" {
+  project = "civic-access-392521"
+  region  = "us-central1"
+}
+resource "google_org_policy_policy" "uniform_bucket_access" {
+  name   = "projects/${var.gcp_project}/policies/storage.uniformBucketLevelAccess"
+  parent = "projects/${var.gcp_project}"
+
+  spec {
+    rules { enforce = "TRUE" }
+  }
+}
+
+resource "google_org_policy_policy" "disable_sa_keys" {
+  name   = "projects/${var.gcp_project}/policies/iam.disableServiceAccountKeyCreation"
+  parent = "projects/${var.gcp_project}"
+
+  spec {
+    rules { enforce = "TRUE" }
+  }
+}
+
+resource "google_org_policy_policy" "require_oslogin" {
+  name   = "projects/${var.gcp_project}/policies/compute.requireOsLogin"
+  parent = "projects/${var.gcp_project}"
+
+  spec {
+    rules { enforce = "TRUE" }
+  }
+}
+
