@@ -135,7 +135,7 @@ resource "aws_s3_bucket_logging" "primary" {
 }
 
 resource "aws_s3_bucket" "trail" {
-  bucket        = local.trail_name.id
+  bucket        = local.trail_name
   force_destroy = true
 }
 
