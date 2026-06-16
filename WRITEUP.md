@@ -46,3 +46,25 @@ As there is not currently an official OSCAL (Open Security Controls Assessment L
 ## LATER
 
 - Complete HIPAA Privacy Rule adoption using IAM (AWS Identity Center) Resources to layer on privacy protection using NIST SP 800-188 as the catalog.
+
+
+Lab4-4 ()
+WRITEUP.md section mapping each chain property (authenticity, integrity, timeliness, preservation) to the artifact that proves it.
+=== 1. Integrity (SHA-256) ===
+  OK (dd8a473f8c1dcd969e220296f180f8069d12564fa92ae9c488c40e2387e6adee)
+=== 2. Authenticity + timestamp (Cosign + Sigstore Rekor) ===
+Verified OK
+  OK (Cosign verified, Rekor entry exists)
+=== 3. Preservation (Object Lock retention) ===
+  OK (retain until 2026-04-27T18:30:33.696000+00:00)
+
+CHAIN INTACT for run 24963918994
+(real sample)
+EVIDENCE_VAULT=cgep-lab-grc-evidence-vault-0748579d bash scripts/verify-evidence.sh 27634193583 --p
+rofile cgep
+download: s3://cgep-lab-grc-evidence-vault-0748579d/runs/27634193583/evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz.sha256 to ./evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz.sha256
+download: s3://cgep-lab-grc-evidence-vault-0748579d/runs/27634193583/receipt.json to ./receipt.json
+download: s3://cgep-lab-grc-evidence-vault-0748579d/runs/27634193583/evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz.sig.bundle to ./evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz.sig.bundle
+download: s3://cgep-lab-grc-evidence-vault-0748579d/runs/27634193583/evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz to ./evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz
+Verified OK
+CHAIN INTACT for run 27634193583
