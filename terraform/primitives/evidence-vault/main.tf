@@ -1,5 +1,6 @@
 # terraform/primitives/evidence-vault/main.tf
 # This is a simple S3 bucket configuration for an evidence vault.
+# EVIDENCE-VAULT
 terraform {
   required_version = ">= 1.6"
   required_providers {
