@@ -158,6 +158,7 @@ resource "aws_s3_bucket_public_access_block" "trail" {
   restrict_public_buckets = true
 }
 
+data "aws_caller_identity" "current" {}
 data "aws_iam_policy_document" "trail" {
   statement {
     sid       = "AWSCloudTrailAclCheck"
