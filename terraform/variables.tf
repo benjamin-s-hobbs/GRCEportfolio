@@ -22,3 +22,10 @@ variable "bucket_suffix" {
   description = "Optional suffix to force a specific bucket name. Defaults to a random_id."
   default     = ""
 }
+
+variable "aws_region" {
+  type        = string
+  description = "AWS region for the deployment."
+  default     = "us-east-1"
+}
+
