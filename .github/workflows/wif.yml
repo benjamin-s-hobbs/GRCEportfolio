@@ -1,4 +1,19 @@
-name: Workload Identity Federation
+# .github/workflows/wif.yml
+name: wif
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  GCP_REGION: us-central-1
+  TF_WORKING_DIR: terraform
+  
+jobs:
+  wif:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 permissions:
   id-token: write   # required to mint the OIDC token
   contents: read
