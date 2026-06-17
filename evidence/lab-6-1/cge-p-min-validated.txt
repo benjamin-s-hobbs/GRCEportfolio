@@ -1,0 +1,1 @@
+VALID: Model /mnt/c/Users/jinxx/Capstone-CGEP/lab-6-1/profiles/cge-p-minimum/profile.json passed the Validator to confirm the model passes all registered validation tests.
