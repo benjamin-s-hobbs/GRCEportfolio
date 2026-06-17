@@ -12,16 +12,20 @@ env:
 jobs:
   wif:
     runs-on: ubuntu-latest
+    
+    permissions:
+      id-token: write   # required to mint the OIDC token
+      contents: read
+
     steps:
-      - uses: actions/checkout@v4
-permissions:
-  id-token: write   # required to mint the OIDC token
-  contents: read
+    
+        - uses: actions/checkout@v4
 
-steps:
-  - uses: google-github-actions/auth@v2
-    with:
-      workload_identity_provider: projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-actions/providers/github
-      service_account: cgep-grc-gate-sa@your-gcp-project.iam.gserviceaccount.com
+        - uses: google-github-actions/auth@v2
+          with:
+            workload_identity_provider: projects/455259185438/locations/global/workloadIdentityPools/github-actions/providers/github
+            service_account: cgep-grc-gate-sa@civic-access-392521.iam.gserviceaccount.com
 
-  - run: gcloud storage ls
+        - uses: actions/checkout@v4
+        
+        - run: gcloud storage ls
