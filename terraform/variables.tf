@@ -1,4 +1,10 @@
 # variables.tf
+variable "aws_region" {
+  type        = string
+  description = "AWS region for the starter."
+  default     = "us-east-1"
+}
+
 variable "project_name" {
   type        = string
   description = "Short project identifier. Becomes part of bucket names and the Project tag."
@@ -7,7 +13,6 @@ variable "project_name" {
     error_message = "project_name must be 3-21 lowercase alphanumerics or hyphens, starting with a letter."
   }
 }
-
 variable "environment" {
   type        = string
   description = "Deployment environment. Drives the Environment tag and downstream policy decisions."
@@ -16,12 +21,5 @@ variable "environment" {
     error_message = "environment must be one of: dev, staging, prod."
   }
 }
-
-variable "bucket_suffix" {
-  type        = string
-  description = "Optional suffix to force a specific bucket name. Defaults to a random_id."
-  default     = ""
-}
-
 
 
