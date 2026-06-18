@@ -2,7 +2,8 @@
 output "bucket_arn"         { value = aws_s3_bucket.primary.arn }
 output "bucket_name"        { value = aws_s3_bucket.primary.id }
 output "log_bucket_arn"     { value = aws_s3_bucket.log.arn }
-output "kms_key_arn"        { value = aws_kms_key.main.arn }
+output "kms_key_arn"        { value = aws_kms_key.key.arn }
+
 output "encryption_algorithm" {
   description = "Server-side encryption algorithm in effect (SC-28 attestation)."
   value = one([
@@ -21,31 +22,13 @@ output "intake_table" {
   description = "DynamoDB table holding patient submissions."
 }
 
-output "uploads_bucket_arn" {
-  value = aws_s3_bucket.uploads.arn
-  description = "S3 bucket ARN where intake attachments land."
-  }
-    
-output "uploads_bucket_name" {
-  value       = aws_s3_bucket.uploads.id
-  description = "S3 bucket name where intake attachments land."
-}
-
-output "uploads_log_bucket_arn" {
-  value       = aws_s3_bucket.log.arn
-  description = "S3 access log bucket ARN."
-}
-
 output "vault_name" {
   value       = aws_s3_bucket.vault.id
   description = "S3 bucket name of the evidence vault. Feed this to capture-evidence.sh --vault."
 }
-output "aws_kms_key_arn" {
-  value = aws_kms_key.key.arn
-  description = "Customer-managed KMS key ARN for most encryption operations."
-}
 
-output "cmek_cloudwatch_log_key_arn" {
+
+output "cloudwatch_log_key_arn" {
   value = aws_kms_key.cloudwatch_log_key.arn
   description = "Customer-managed KMS key ARN for CloudWatch log encryption."
 }
