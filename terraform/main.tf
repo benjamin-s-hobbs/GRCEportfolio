@@ -864,7 +864,14 @@ resource "aws_api_gateway_stage" "prod" {
 
 # Adding this line so Terraform waits for the account setting to finish
 # before the stage is created
-  depends_on = [aws_api_gateway_account.main]
+  depends_on    = [aws_api_gateway_account.main]
+
+  # Enabling X-Ray Tracing
+  xray_tracing_enabled = true
+
+  # Provisioning the Cache Cluster
+  cache_cluster_enabled = true
+  cache_cluster_size    = "0.5" # Smallest size for lab/testing
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.apigw_logs.arn
     format = jsonencode({
@@ -890,9 +897,42 @@ resource "aws_api_gateway_method_settings" "all" {
     data_trace_enabled     = true
     throttling_burst_limit = 100
     throttling_rate_limit  = 50
+
+    # Enable Caching on the methods
+    caching_enabled        = true
+    cache_ttl_in_seconds   = 300
   }
 }
 
+resource "aws_api_gateway_rest_api_policy" "no_public_access" {
+  rest_api_id = aws_api_gateway_rest_api.intake.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "DenyPublicInternet"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "execute-api:Invoke"
+        Resource  = "execute-api:/*/*/*"
+        Condition = {
+          StringNotEquals = {
+            # This restricts access entirely to a specific VPC Endpoint
+            "aws:SourceVpce" = "${local.name_prefix}-xray-vpce" 
+          }
+        }
+      },
+      {
+        Sid       = "AllowInternalTraffic"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "execute-api:Invoke"
+        Resource  = "execute-api:/*/*/*"
+      }
+    ]
+  })
+}
 # 3. Native Regional WAF and Association
 resource "aws_wafv2_web_acl" "api_waf" {
   name        = "${local.name_prefix}-rest-waf-${local.suffix}"
