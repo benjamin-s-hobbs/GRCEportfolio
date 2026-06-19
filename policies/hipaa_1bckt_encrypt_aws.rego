@@ -1,21 +1,18 @@
-# HIPAA Encryption Policy for AWS
+# HIPAA Security Rule: Encryption Safeguards (for AWS)
 # METADATA
-# title: 164.312(a)(2)(iv) - Encryption at Rest (AWS S3)
+# title: Sensitive Data Encryption at Rest 
 # description: "Every aws_s3_bucket must have an aws_s3_bucket_server_side_encryption_configuration that references it."
 # custom:
 #   control_id: 164.312(a)(2)(iv)
 #   framework: nist-800-66 r2 (HIPAA Security Rule)
 #   severity: high
 #   remediation: "Add aws_s3_bucket_server_side_encryption_configuration { bucket = aws_s3_bucket.<name>.id ... } for the bucket."
-package compliance.sc28_aws
+package aws.compliance.hipaa.s3_cmk_encryption
 
 import rego.v1
 
 # Match by Terraform reference in `configuration`, not by literal bucket name in
 # `planned_values`. At plan time the bucket name is often "(known after apply)".
-
-package aws.compliance.hipaa.s3_cmk_encryption
-
 
 # HIPAA Security Rule: Encryption Safeguards
 # Requires S3 buckets to use Customer-Managed Keys (CMK) via AWS KMS.
