@@ -93,7 +93,7 @@ resource "aws_subnet" "private" {
   tags = { Name = "${local.name_prefix}-private-${count.index}" }
 }
 
-# 2. Place the NAT Gateway in the first PUBLIC subnet
+# 2. Placing a NAT Gateway in the first PUBLIC subnet
 resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public[0].id
@@ -278,13 +278,18 @@ resource "aws_dynamodb_table" "intake" {
     name = "submission_id"
     type = "S"
   }
+
+  # Enabling Continuous Backup / Recovery (PITR)
+  point_in_time_recovery {
+    enabled = true
+  }
   # HIPAA 164.312(a)(2)(iv): (Addressing GAP-02) server_side_encryption block is added, 
   # defaulting to customer-owned key.
   server_side_encryption {
     enabled     = true
     kms_key_arn = aws_kms_key.key.arn
   }
-
+  
 }
 
 ######################################################################
