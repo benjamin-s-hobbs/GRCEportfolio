@@ -178,19 +178,66 @@ resource "aws_route_table_association" "public" {
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
 }
+
 # HIPAA 164.312(a)(2)(iv) / SC-12 / SC-13 / SC-28: Cryptographic key establishment 
 # and protection at rest. Customed-owned keys, not AWS-managed keys. 
 # 90-day key rotation enabled.
+
+# Building a KMS Policy Document safely to avoid orphaning
+# the CMEK
+data "aws_iam_policy_document" "kms_policy" {
+  
+# Prevents from locking yourself out of the key
+  statement {
+    sid       = "Enable IAM User Permissions"
+    effect    = "Allow"
+    actions   = ["kms:*"]
+    resources = ["*"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+
+  # This statement grants VPC Flow Logs permission to encrypt the logs
+  statement {
+    sid       = "AllowVPCFlowLogs"
+    effect    = "Allow"
+    actions   = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+    resources = ["*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["delivery.logs.amazonaws.com"]
+    }
+  }
+}
+
 resource "aws_kms_key" "key" {
   description             = "KMS key for acme-health resource encryption"
   enable_key_rotation     = true
   rotation_period_in_days = 90 # Equivalent to 7776000s
 
-#  lifecycle {
-#    prevent_destroy = true # set to "true" for use in production
-#  }
-#}
+  lifecycle {
+    prevent_destroy = false # set to "true" for use in production
+  }
+
+  # Tell the key to use the policy we just built above
+  policy = data.aws_iam_policy_document.kms_policy.json
+  
+  tags = {
+    Environment = var.environment
+    Purpose     = "data-encryption"
+  }
 }
+
 # AWS "Aliases" allows for custom naming conventions
 resource "aws_kms_alias" "key" {
   name      = "alias/${local.key_id}"
@@ -438,10 +485,52 @@ resource "aws_s3_bucket_policy" "vault" {
             "aws:SecureTransport" = "false"
           }
         }
+      },
+      {
+        Sid       = "AWSLogDeliveryAclCheck"
+        Effect    = "Allow"
+        Principal = { Service = "delivery.logs.amazonaws.com" }
+        Action    = "s3:GetBucketAcl"
+        Resource  = aws_s3_bucket.vault.arn
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
+      },
+      {
+        Sid       = "AWSLogDeliveryWrite"
+        Effect    = "Allow"
+        Principal = { Service = "delivery.logs.amazonaws.com" }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.vault.arn}/*"
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl"      = "bucket-owner-full-control"
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
       }]
     })
 }
 
+# enabling flow logs for the vpc and sending them to the vault
+# (Write Once, Read Many)
+
+resource "aws_flow_log" "main" {
+  log_destination      = aws_s3_bucket.vault.arn
+  log_destination_type = "s3"
+  traffic_type         = "ALL"
+  vpc_id               = aws_vpc.main.id
+
+  # Dropping the interval from the default 600s down to 60s 
+  # provides much faster network telemetry ingestion for your evidence pipeline.
+  max_aggregation_interval = 60
+
+  tags = {
+    Name = "${local.name_prefix}-vpc-flow-logs"
+  }
+}
 
 # (Intentionally omitted: SSE-KMS encryption with a customer CMK,
 #  bucket policy enforcing aws:SecureTransport, lifecycle.
