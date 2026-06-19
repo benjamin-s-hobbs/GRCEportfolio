@@ -296,6 +296,12 @@ resource "aws_s3_bucket" "log" {
   bucket = local.log_name
 }
 
+resource "aws_s3_bucket_versioning" "log" {
+  bucket = local.log_name
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
 resource "aws_s3_bucket_policy" "log" {
   bucket = local.log_name
   policy = jsonencode({
@@ -317,6 +323,7 @@ resource "aws_s3_bucket_policy" "log" {
     }]
   })
 }
+
 
 resource "aws_s3_bucket_ownership_controls" "log" {
   bucket = local.log_name
