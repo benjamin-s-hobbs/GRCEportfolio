@@ -380,9 +380,14 @@ resource "aws_s3_bucket_object_lock_configuration" "vault" {
 resource "aws_s3_bucket_server_side_encryption_configuration" "vault" {
   bucket = local.vault_name
   rule {
-    apply_server_side_encryption_by_default { sse_algorithm = "aws:kms" }
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.key.arn
+    }
+    bucket_key_enabled = true
   }
 }
+
 resource "aws_s3_bucket_public_access_block" "vault" {
   bucket                  = local.vault_name
   block_public_acls       = true
