@@ -142,6 +142,26 @@ resource "aws_security_group" "lambda_sg" {
   }
 }
 
+# VPC Endpoint for X-Ray service
+resource "aws_vpc_endpoint" "xray" {
+  vpc_id              = aws_vpc.main.id # Update if your VPC variable is named differently
+  service_name        = "com.amazonaws.${var.aws_region}.xray"
+  vpc_endpoint_type   = "Interface"
+  
+  # Attached to private subnets
+  subnet_ids          = aws_subnet.private[*].id
+  
+  # Reusing Lambda Security Group
+  security_group_ids  = [aws_security_group.lambda_sg.id]
+  
+  # This makes the endpoint act like the default public AWS DNS, 
+  # so Lambda finds it automatically without code changes
+  private_dns_enabled = true 
+
+  tags = {
+    Name = "${local.name_prefix}-xray-endpoint"
+  }
+}
 # Creating a Route Table for the PRIVATE subnets pointing to the NAT Gateway
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
@@ -707,9 +727,9 @@ resource "aws_kms_key" "cloudwatch_log_key" {
   enable_key_rotation     = true
   rotation_period_in_days = 90
 
-#  lifecycle {
-#    prevent_destroy = true # Good practice for compliance workloads
-#}
+  lifecycle {
+    prevent_destroy = false # Good practice for compliance workloads
+}
 
   policy = jsonencode({
     Version = "2012-10-17"
