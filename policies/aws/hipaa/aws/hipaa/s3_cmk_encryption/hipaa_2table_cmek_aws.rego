@@ -1,4 +1,4 @@
-# HIPAA CMEK Policy for AWS
+# HIPAA Security Rule: CMEK Policy (for AWS)
 # METADATA
 # title: CMEK Policy for Resources
 # description: "Every resource that is encrypted must 
@@ -14,17 +14,33 @@ package aws.hipaa.resource_cmek
 import rego.v1
 # Match by Terraform reference in `configuration`, not by literal bucket name in
 # `planned_values`. At plan time the bucket name is often "(known after apply)".
+default allow := false
 
+allow if {
+	count(deny) == 0
+}
 
 deny contains msg if {
-    some r in input.configuration.root_module.resources
-    r.type == "aws_dynamodb_table"
-    not has_cmek(r)
-    "msg": sprintf("HIPAA 164.312(a)(2)(iv):  %v does not reference a valid CMEK.", [r.address])
-} 
+	some config in input.configuration.root_module.resources
+	config.type == "aws_dynamodb_table"
+                    
 
-has_cmek(r) {
-    # Verify the table references a custom KMS key ARN
-    some ref in r.expressions.server_side_encryption.kms_key_arn.references
-    startswith(ref, "aws_kms_key.")
+	not has_dynamodb_custom_key_ref(config)
+
+	msg := sprintf(
+		"HIPAA 164.312(a)(2)(iv): '%v' is missing a Customer-Managed Key (CMK) reference.",
+		[config.address],
+	)
+}
+
+# --- Helper Functions ---
+
+# Helper to check if a DynamoDB table references a custom KMS key
+has_dynamodb_custom_key_ref(config) if {
+	# Look inside the server_side_encryption block
+	some sse in config.expressions.server_side_encryption
+	
+	# Verify that a KMS key reference actually exists
+	refs := sse.kms_key_arn.references
+	count(refs) > 0
 }

@@ -68,7 +68,7 @@ deny contains msg if {
 
 # Helper to verify if an encryption resource points to the bucket
 has_encryption_resource(bucket_name) if {
-	some resource in input.configuration.root_module.resources
+	some config in input.configuration.root_module.resources
 	config.type == "aws_s3_bucket_server_side_encryption_configuration"
 	
 	# Check the raw configuration block to see if it references the bucket
@@ -83,7 +83,7 @@ has_custom_key_ref(config) if {
 	some sse in rules.apply_server_side_encryption_by_default
 
 	# Check if there is a 'references' array inside kms_master_key_id
-	some key_id in sse.kms_master_key_id.references
+	refs := sse.kms_master_key_id.references
 	count(refs) > 0
 	
 }
