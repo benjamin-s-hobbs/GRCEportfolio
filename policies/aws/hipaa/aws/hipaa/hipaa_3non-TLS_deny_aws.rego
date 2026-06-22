@@ -7,23 +7,33 @@
 #   framework: nist-800-66 r2 (HIPAA Security Rule)
 #   severity: critical
 #   remediation: Add a bucket policy condition denying s3:* when aws:SecureTransport is false."
-package hipaa.tls.deny
+package aws.hipaa.tls_deny
 
 import rego.v1
 
 # Match by Terraform reference in `configuration`, not by literal bucket name in
 # `planned_values`. At plan time the bucket name is often "(known after apply)".
+default allow := false
 
-deny contains msg if {
-    r := input.resource_changes[_]
-    r.type == "aws_s3_bucket_policy"
-    not has_secure_transport(r)
-    "msg": sprintf("Bucket policy %v does not enforce aws:SecureTransport.", [r.address])
+allow if {
+	count(deny) == 0
 }
 
-has_secure_transport(r) {
+deny contains msg if {
+    some config in input.configuration.root.module.resources
+    config.type == "aws_s3_bucket_policy"
+
+    not has_secure_transport(config)
+
+    "msg": sprintf("Bucket policy %v does not enforce aws:SecureTransport.", [config.address])
+}
+
+# --- Helper Functions ---
+
+has_secure_transport(config) if {
     
     # Ensure the policy string contains the explicit deny check
-    policy_json := r.change.after.policy
-    not contains(policy_json, "\"aws:SecureTransport\":\"false\"")
+    # Access the policy from the configuration
+    policy_string := config.expressions.policy.constant_value
+    contains(policy_string, "aws:SecureTransport")
 }
