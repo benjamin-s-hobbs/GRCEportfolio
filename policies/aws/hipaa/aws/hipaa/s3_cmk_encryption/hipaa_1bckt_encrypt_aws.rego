@@ -6,7 +6,7 @@
 #   control_id: 164.312(a)(2)(iv)
 #   framework: nist-800-66 r2 (HIPAA Security Rule)
 #   severity: high
-#   remediation: "Add aws_s3_bucket_server_side_encryption_configuration { bucket = 
+#   remediation: "Add aws_s3_bucket_server_side_encryption_configuration { bucket =
 #                 aws_s3_bucket.<name>.id ... } for the bucket."
 package aws.hipaa.s3_cmk_encryption
 
@@ -57,24 +57,27 @@ violations[msg] if {
 	some rules in resource.change.after.rule
 	some sse_config in rules.apply_server_side_encryption_by_default
 
-	# Enforce KMS, but catch cases where the specific key ID is 
+	# Enforce KMS, but catch cases where the specific key ID is
 	# missing (defaults to AWS-managed key)
 	sse_config.sse_algorithm == "aws:kms"
 	not has_custom_key(sse_config)
 
-	msg := sprintf("HIPAA 164.312(a)(2)(iv): '%v' A Customer-Managed Key (CMK) ARN must be specified.", 
-	[resource.address])
+	msg := sprintf(
+		"HIPAA 164.312(a)(2)(iv): '%v' A Customer-Managed Key (CMK) ARN must be specified.",
+		[resource.address],
+	)
 }
 
 # --- Helper Functions ---
 
 # Helper to verify if an encryption resource points to the bucket
 has_encryption_resource(bucket_name) if {
-	some resource in input.resource_changes	resource.type == "aws_s3_bucket_server_side_encryption_configuration"
+	some resource in input.resource_changes
+	resource.type == "aws_s3_bucket_server_side_encryption_configuration"
 	contains(resource.change.after.bucket, bucket_name)
 }
 
-# Helper to check that kms_master_key_id is populated and not 
+# Helper to check that kms_master_key_id is populated and not
 # using the default AWS-managed alias
 has_custom_key(sse_config) if {
 	some key_id in sse_config.kms_master_key_id

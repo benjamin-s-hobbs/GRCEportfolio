@@ -9,7 +9,7 @@
 #   framework: nist-800-66 r2 (HIPAA Security Rule)
 #   severity: high
 #   remediation: "Add aws_s3_bucket_server_side_encryption_configuration { bucket = aws_s3_bucket.<name>.id ... } for the bucket."
-package hipaa.resource_cmek
+package aws.hipaa.resource_cmek
 
 import rego.v1
 # Match by Terraform reference in `configuration`, not by literal bucket name in
@@ -17,14 +17,14 @@ import rego.v1
 
 
 deny contains msg if {
-    r := input.configuration.root_module.resources[_]
+    some r in input.configuration.root_module.resources
     r.type == "aws_dynamodb_table"
     not has_cmek(r)
-    "msg": sprintf("resource %v does not reference a valid CMEK.", [r.address])
+    "msg": sprintf("HIPAA 164.312(a)(2)(iv):  %v does not reference a valid CMEK.", [r.address])
 } 
 
 has_cmek(r) {
     # Verify the table references a custom KMS key ARN
-    ref := r.expressions.server_side_encryption[_].kms_key_arn.references[_]
+    some ref in r.expressions.server_side_encryption.kms_key_arn.references
     startswith(ref, "aws_kms_key.")
 }
