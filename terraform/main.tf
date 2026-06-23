@@ -309,27 +309,6 @@ resource "aws_s3_bucket" "uploads" {
   bucket = local.uploads_bucket
 }
 
-resource "aws_s3_bucket_policy" "uploads" {
-  bucket = local.uploads_bucket
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Sid       = "EnforceSecureTransport"
-      Effect    = "Deny"
-      Principal = "*"
-      Action    = "s3:*"
-      Resource  = [ 
-        aws_s3_bucket.uploads.arn, 
-        "${aws_s3_bucket.uploads.arn}/*"
-      ]
-      Condition = {
-        Bool = {
-          "aws:SecureTransport" = "false" # Blocks any request not using HTTPS
-        }
-      }
-    }]
-  })
-}
 
 # HIPAA 164.312(a)(2)(iv): (Addressing GAP-01) KMS keys are under customer custody 
 # and no longer defaults to AWS-managed keys. 
