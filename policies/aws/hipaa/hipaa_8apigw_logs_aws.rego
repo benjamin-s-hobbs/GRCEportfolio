@@ -15,9 +15,6 @@ import rego.v1
 # Match by Terraform reference in `configuration`, not by literal bucket name in
 # `planned_values`. At plan time the bucket name is often "(known after apply)".
 
-
-}
-
 deny contains msg if {
     some r in input.configuration.root_module.resources
     r.type == "aws_api_gateway_stage"
