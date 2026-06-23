@@ -79,7 +79,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.42.${count.index}.0/24"
   availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 
   tags                    = { Name = "${local.name_prefix}-public-${count.index}" }
 }
@@ -93,7 +93,7 @@ resource "aws_subnet" "private" {
   tags = { Name = "${local.name_prefix}-private-${count.index}" }
 }
 
-# 2. Place the NAT Gateway in the first PUBLIC subnet
+# 2. Placing a NAT Gateway in the first PUBLIC subnet
 resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public[0].id
@@ -104,6 +104,7 @@ resource "aws_nat_gateway" "main" {
   depends_on = [aws_internet_gateway.main]
 }
 
+# tfsec:ignore:aws-ec2-no-public-egress-sgr - Acceptable risk: Lambda requires internet egress via NAT to reach AWS service APIs. 
 resource "aws_security_group" "lambda_sg" {
   name        = "intake-lambda-sg"
   description = "Security group for Patient Intake API Lambda function"
@@ -111,6 +112,7 @@ resource "aws_security_group" "lambda_sg" {
   vpc_id      = aws_vpc.main.id 
 
   # Original Egress: Controls what the Lambda can reach out to over HTTPS.
+  # tfsec:ignore:aws-ec2-no-public-egress-sgr - Acceptable risk: Lambda requires internet egress via NAT to reach AWS service APIs.
   egress {
     description = "Allow outbound HTTPS traffic for AWS API interactions"
     from_port   = 443
@@ -142,6 +144,26 @@ resource "aws_security_group" "lambda_sg" {
   }
 }
 
+# VPC Endpoint for X-Ray service
+resource "aws_vpc_endpoint" "xray" {
+  vpc_id              = aws_vpc.main.id # Update if your VPC variable is named differently
+  service_name        = "com.amazonaws.${var.aws_region}.xray"
+  vpc_endpoint_type   = "Interface"
+  
+  # Attached to private subnets
+  subnet_ids          = aws_subnet.private[*].id
+  
+  # Reusing Lambda Security Group
+  security_group_ids  = [aws_security_group.lambda_sg.id]
+  
+  # This makes the endpoint act like the default public AWS DNS, 
+  # so Lambda finds it automatically without code changes
+  private_dns_enabled = true 
+
+  tags = {
+    Name = "${local.name_prefix}-xray-endpoint"
+  }
+}
 # Creating a Route Table for the PRIVATE subnets pointing to the NAT Gateway
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
@@ -177,20 +199,68 @@ resource "aws_route_table_association" "public" {
   count          = 2
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
+
 }
+
 # HIPAA 164.312(a)(2)(iv) / SC-12 / SC-13 / SC-28: Cryptographic key establishment 
 # and protection at rest. Customed-owned keys, not AWS-managed keys. 
 # 90-day key rotation enabled.
+
+# Building a KMS Policy Document safely to avoid orphaning
+# the CMEK
+data "aws_iam_policy_document" "kms_policy" {
+  
+# Prevents from locking yourself out of the key
+  statement {
+    sid       = "Enable IAM User Permissions"
+    effect    = "Allow"
+    actions   = ["kms:*"]
+    resources = ["*"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+
+  # This statement grants VPC Flow Logs permission to encrypt the logs
+  statement {
+    sid       = "AllowVPCFlowLogs"
+    effect    = "Allow"
+    actions   = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+    ]
+    resources = ["*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["delivery.logs.amazonaws.com"]
+    }
+  }
+}
+
 resource "aws_kms_key" "key" {
   description             = "KMS key for acme-health resource encryption"
   enable_key_rotation     = true
   rotation_period_in_days = 90 # Equivalent to 7776000s
 
-#  lifecycle {
-#    prevent_destroy = true # set to "true" for use in production
-#  }
-#}
+  lifecycle {
+    prevent_destroy = false # set to "true" for use in production
+  }
+
+  # Tell the key to use the policy we just built above
+  policy = data.aws_iam_policy_document.kms_policy.json
+  
+  tags = {
+    Environment = var.environment
+    Purpose     = "data-encryption"
+  }
 }
+
 # AWS "Aliases" allows for custom naming conventions
 resource "aws_kms_alias" "key" {
   name      = "alias/${local.key_id}"
@@ -211,13 +281,18 @@ resource "aws_dynamodb_table" "intake" {
     name = "submission_id"
     type = "S"
   }
+
+  # Enabling Continuous Backup / Recovery (PITR)
+  point_in_time_recovery {
+    enabled = true
+  }
   # HIPAA 164.312(a)(2)(iv): (Addressing GAP-02) server_side_encryption block is added, 
   # defaulting to customer-owned key.
   server_side_encryption {
     enabled     = true
     kms_key_arn = aws_kms_key.key.arn
   }
-
+  
 }
 
 ######################################################################
@@ -237,27 +312,6 @@ resource "aws_s3_bucket" "uploads" {
   bucket = local.uploads_bucket
 }
 
-resource "aws_s3_bucket_policy" "uploads" {
-  bucket = local.uploads_bucket
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Sid       = "EnforceSecureTransport"
-      Effect    = "Deny"
-      Principal = "*"
-      Action    = "s3:*"
-      Resource  = [ 
-        aws_s3_bucket.uploads.arn, 
-        "${aws_s3_bucket.uploads.arn}/*"
-      ]
-      Condition = {
-        Bool = {
-          "aws:SecureTransport" = "false" # Blocks any request not using HTTPS
-        }
-      }
-    }]
-  })
-}
 
 # HIPAA 164.312(a)(2)(iv): (Addressing GAP-01) KMS keys are under customer custody 
 # and no longer defaults to AWS-managed keys. 
@@ -280,6 +334,33 @@ resource "aws_s3_bucket_versioning" "uploads" {
   }
 }
 
+data "aws_iam_policy_document" "uploads_secure_transport" {
+  statement {
+    sid    = "DenyInsecureTransport"
+    effect = "Deny"
+    actions = [
+      "s3:*",
+    ]
+    resources = [
+      aws_s3_bucket.uploads.arn,
+      "${aws_s3_bucket.uploads.arn}/*",
+    ]
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "uploads" {
+  bucket = aws_s3_bucket.uploads.id
+  policy = data.aws_iam_policy_document.uploads_secure_transport.json
+}
 
 # AC-3: Access control, explicit deny on every public access vector.
 resource "aws_s3_bucket_public_access_block" "uploads" {
@@ -296,27 +377,39 @@ resource "aws_s3_bucket" "log" {
   bucket = local.log_name
 }
 
-resource "aws_s3_bucket_policy" "log" {
+resource "aws_s3_bucket_versioning" "log" {
   bucket = local.log_name
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Sid       = "EnforceSecureTransport"
-      Effect    = "Deny"
-      Principal = "*"
-      Action    = "s3:*"
-      Resource  = [ 
-        aws_s3_bucket.log.arn,
-        "${aws_s3_bucket.log.arn}/*"
-      ]
-      Condition = {
-        Bool = {
-          "aws:SecureTransport" = "false" # Blocks any request not using HTTPS
-        }
-      }
-    }]
-  })
+  versioning_configuration {
+    status = "Enabled"
+  }
 }
+# 1. Define the structured policy document
+data "aws_iam_policy_document" "log_secure_transport" {
+  statement {
+    sid    = "DenyInsecureTransport"
+    effect = "Deny"
+    actions = ["s3:*"]
+    resources = [
+      aws_s3_bucket.log.arn,
+      "${aws_s3_bucket.log.arn}/*",
+    ]
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "log" {
+  bucket = aws_s3_bucket.log.id
+  policy = data.aws_iam_policy_document.log_secure_transport.json
+}
+
 
 resource "aws_s3_bucket_ownership_controls" "log" {
   bucket = local.log_name
@@ -380,9 +473,15 @@ resource "aws_s3_bucket_object_lock_configuration" "vault" {
 resource "aws_s3_bucket_server_side_encryption_configuration" "vault" {
   bucket = local.vault_name
   rule {
-    apply_server_side_encryption_by_default { sse_algorithm = "aws:kms" }
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.key.arn
+      sse_algorithm     = "aws:kms"
+    }
+    # Enabling bucket keys reduces KMS costs for high-traffic buckets
+    bucket_key_enabled = true 
   }
 }
+
 resource "aws_s3_bucket_public_access_block" "vault" {
   bucket                  = local.vault_name
   block_public_acls       = true
@@ -393,43 +492,119 @@ resource "aws_s3_bucket_public_access_block" "vault" {
 
 # Refuse bucket deletion from anyone except the account root.
 data "aws_caller_identity" "current" {}
-resource "aws_s3_bucket_policy" "vault" {
-  bucket = local.vault_name
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Sid       = "DenyBucketDeletion"
-      Effect    = "Deny"
-      Principal = "*"
-      Action    = "s3:DeleteBucket"
-      Resource  = [ 
-        aws_s3_bucket.vault.arn,
-        "${aws_s3_bucket.vault.arn}/*"
-      ]
-      Condition = {
-        StringNotEquals = {
-          "aws:PrincipalArn" = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-        }
-      }
-    },
-    { 
-        Sid       = "EnforceSecureTransport"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:*"
-        Resource  = [
-          aws_s3_bucket.vault.arn,
-          "${aws_s3_bucket.vault.arn}/*"
-        ]
-        Condition = {
-          Bool    = {
-            "aws:SecureTransport" = "false"
-          }
-        }
-      }]
-    })
+
+# 1. Define the structured policy document
+data "aws_iam_policy_document" "vault" {
+  
+  statement {
+    sid       = "DenyBucketDeletion"
+    effect    = "Deny"
+    actions   = ["s3:DeleteBucket"]
+    resources = [
+      aws_s3_bucket.vault.arn,
+      "${aws_s3_bucket.vault.arn}/*"
+    ]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+
+    condition {
+      test     = "StringNotEquals"
+      variable = "aws:PrincipalArn"
+      values   = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+
+  statement {
+    sid       = "EnforceSecureTransport"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [
+      aws_s3_bucket.vault.arn,
+      "${aws_s3_bucket.vault.arn}/*"
+    ]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+
+  statement {
+    sid       = "AWSLogDeliveryAclCheck"
+    effect    = "Allow"
+    actions   = ["s3:GetBucketAcl"]
+    resources = [aws_s3_bucket.vault.arn]
+
+    principals {
+      type        = "Service"
+      identifiers = ["delivery.logs.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+
+  statement {
+    sid       = "AWSLogDeliveryWrite"
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.vault.arn}/*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["delivery.logs.amazonaws.com"]
+    }
+
+    # You can safely stack condition blocks in Terraform
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
 }
 
+# 2. Attach the fully compiled JSON to the bucket
+resource "aws_s3_bucket_policy" "vault" {
+  bucket = local.vault_name
+  policy = data.aws_iam_policy_document.vault.json
+}
+
+# enabling flow logs for the vpc and sending them to the vault
+# (Write Once, Read Many)
+
+resource "aws_flow_log" "main" {
+  log_destination      = aws_s3_bucket.vault.arn
+  log_destination_type = "s3"
+  traffic_type         = "ALL"
+  vpc_id               = aws_vpc.main.id
+
+  # Dropping the interval from the default 600s down to 60s 
+  # provides much faster network telemetry ingestion for your evidence pipeline.
+  max_aggregation_interval = 60
+
+  tags = {
+    Name = "${local.name_prefix}-vpc-flow-logs"
+  }
+}
 
 # (Intentionally omitted: SSE-KMS encryption with a customer CMK,
 #  bucket policy enforcing aws:SecureTransport, lifecycle.
@@ -606,9 +781,9 @@ resource "aws_kms_key" "cloudwatch_log_key" {
   enable_key_rotation     = true
   rotation_period_in_days = 90
 
-#  lifecycle {
-#    prevent_destroy = true # Good practice for compliance workloads
-#}
+  lifecycle {
+    prevent_destroy = false # Good practice for compliance workloads
+}
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -743,7 +918,14 @@ resource "aws_api_gateway_stage" "prod" {
 
 # Adding this line so Terraform waits for the account setting to finish
 # before the stage is created
-  depends_on = [aws_api_gateway_account.main]
+  depends_on    = [aws_api_gateway_account.main]
+
+  # Enabling X-Ray Tracing
+  xray_tracing_enabled = true
+
+  # Provisioning the Cache Cluster
+  cache_cluster_enabled = true
+  cache_cluster_size    = "0.5" # Smallest size for lab/testing
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.apigw_logs.arn
     format = jsonencode({
@@ -769,9 +951,42 @@ resource "aws_api_gateway_method_settings" "all" {
     data_trace_enabled     = true
     throttling_burst_limit = 100
     throttling_rate_limit  = 50
+
+    # Enable Caching on the methods
+    caching_enabled        = true
+    cache_ttl_in_seconds   = 300
   }
 }
 
+resource "aws_api_gateway_rest_api_policy" "no_public_access" {
+  rest_api_id = aws_api_gateway_rest_api.intake.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "DenyPublicInternet"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "execute-api:Invoke"
+        Resource  = "execute-api:/*/*/*"
+        Condition = {
+          StringNotEquals = {
+            # This restricts access entirely to a specific VPC Endpoint
+            "aws:SourceVpce" = "${local.name_prefix}-xray-vpce" 
+          }
+        }
+      },
+      {
+        Sid       = "AllowInternalTraffic"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "execute-api:Invoke"
+        Resource  = "execute-api:/*/*/*"
+      }
+    ]
+  })
+}
 # 3. Native Regional WAF and Association
 resource "aws_wafv2_web_acl" "api_waf" {
   name        = "${local.name_prefix}-rest-waf-${local.suffix}"
