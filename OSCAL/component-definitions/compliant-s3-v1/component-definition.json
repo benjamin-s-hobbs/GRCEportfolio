@@ -60,7 +60,7 @@
                 "links": [
                   {
                     "rel": "evidence",
-                    "href": "s3://acme-api-capstone-dev-grc-evidence-vault-1fe4ddb8/runs/LATEST/evidence-LATEST.tar.gz",
+                    "href": "s3://cgep-lab-grc-evidence-vault-0748579d/runs/LATEST/evidence-LATEST.tar.gz",
                     "text": "Signed pipeline bundle verifying KMS CMK attachment to storage resources."
                   },
                   {
