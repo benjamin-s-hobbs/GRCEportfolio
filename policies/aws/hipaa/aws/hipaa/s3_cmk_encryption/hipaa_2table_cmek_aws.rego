@@ -1,3 +1,4 @@
+# hipaa_2table_cmek_aws.rego
 # HIPAA Security Rule: CMEK Policy (for AWS)
 # METADATA
 # title: CMEK Policy for Resources
