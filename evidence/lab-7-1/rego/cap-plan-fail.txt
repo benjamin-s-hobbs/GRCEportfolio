@@ -1,0 +1,5 @@
+[31mFAIL[0m - ../terraform/cap-plan.json - aws.hipaa.tls_deny - HIPAA 164.312(e)(1): aws_s3_bucket_policy.log does not enforce aws:SecureTransport.
+[31mFAIL[0m - ../terraform/cap-plan.json - aws.hipaa.tls_deny - HIPAA 164.312(e)(1): aws_s3_bucket_policy.uploads does not enforce aws:SecureTransport.
+[31mFAIL[0m - ../terraform/cap-plan.json - aws.hipaa.tls_deny - HIPAA 164.312(e)(1): aws_s3_bucket_policy.vault does not enforce aws:SecureTransport.
+
+[31m3 tests, 0 passed, 0 warnings, 3 failures, 0 exceptions[0m

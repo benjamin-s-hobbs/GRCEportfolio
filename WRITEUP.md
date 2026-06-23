@@ -47,7 +47,7 @@ As there is not currently an official OSCAL (Open Security Controls Assessment L
 
 - Complete HIPAA Privacy Rule adoption using IAM (AWS Identity Center) Resources to layer on privacy protection using NIST SP 800-188 as the catalog.
 
-
+- Patient data lifecycle (deletion, export). Worth mentioning in your write-up as a known gap.
 Lab4-4 ()
 WRITEUP.md section mapping each chain property (authenticity, integrity, timeliness, preservation) to the artifact that proves it.
 === 1. Integrity (SHA-256) ===
@@ -68,3 +68,44 @@ download: s3://cgep-lab-grc-evidence-vault-0748579d/runs/27634193583/evidence-27
 download: s3://cgep-lab-grc-evidence-vault-0748579d/runs/27634193583/evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz to ./evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz
 Verified OK
 CHAIN INTACT for run 27634193583
+
+# tfsec:ignore:aws-ec2-no-public-egress-sgr - Acceptable risk: Lambda 
+# requires internet egress via NAT to reach AWS service APIs. 
+resource "aws_security_group" "lambda_sg" {
+  name        = "intake-lambda-sg"
+  description = "Security group for Patient Intake API Lambda function"
+  
+  vpc_id      = aws_vpc.main.id 
+  1. Public Egress on the Lambda Security Group
+The Finding: aws-ec2-no-public-egress-sgr
+The Cause: Your lambda_sg has an egress rule pointing to 0.0.0.0/0 (the entire public internet). tfsec hates this because it represents a data exfiltration risk if the Lambda is compromised.
+The GRC Solution: Because your architecture relies on a NAT Gateway for the Lambda to reach AWS APIs (like DynamoDB, KMS, and S3) rather than using dedicated VPC Endpoints, this open egress is technically required for the application to function. In the GRC world, we handle this as an Accepted Risk.
+
+You can silence this error by placing a tfsec:ignore comment directly above the security group resource in your main.tf. This documents the exception right in the code:
+
+2. Auto-Assigning Public IPs in Subnets (x2)
+The Finding: aws-ec2-no-public-ip-subnet (Flags twice, once for each public subnet)
+The Cause: The aws_subnet.public resource block has map_public_ip_on_launch = true. This means any EC2 instance accidentally dropped into this subnet will automatically get a public IP address, which is a major compliance violation for secure workloads.
+The GRC Solution: Hardening! The only thing in your public subnet is the NAT Gateway, and the NAT Gateway uses an explicitly assigned Elastic IP (aws_eip.nat). It does not rely on the auto-assign feature.
+
+We can completely eliminate this vulnerability by flipping the boolean to false in your main.tf:
+
+Terraform
+resource "aws_subnet" "public" {
+  count             = 2
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+  
+  # Change this from true to false
+  map_public_ip_on_launch = false 
+
+  tags = {
+    Name = "${local.name_prefix}-public-${count.index}"
+  }
+}
+Once you apply that ignore comment to the security group and flip the boolean on the subnets, tfsec will return 0 high/critical failures, and your pipeline will proceed directly to the Bundle + sign + upload steps.
+
+These are excellent details to mention in your WRITEUP.md as well. Documenting that you purposefully disabled map_public_ip_on_launch shows a strong understanding of VPC hardening.
+
+Are there any other structural changes or formatting updates you'd like to make to the write-up before we watch the final pipeline run?
