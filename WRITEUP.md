@@ -1,70 +1,58 @@
 <!-- Adding Writeup Document for Capstone Project to explain decision choices and provide insight to first 
 principles thinking applied to this project. -->
 
-# WRITEUP.md for ACME Health Project 2026-1-14-01
+# Acme Health: Patient Intake API Governance & Compliance
 
-## NOW (Current Sprint)
+## Design Decisions
 
-### Design Decisions
+### 1.Primary Framework: HIPAA Security Rule
 
-#### Voice
+Our immediate legal and operational mandate is protecting Patient Health Information (PHI). Therefore, the HIPAA Security Rule is the primary framework for this baseline.
 
-We have chosen to speak in the first person plural throughout this project writeup to emphasize that "We" are a team. Understanding that the task of solving our concerns for shipping an audit-defensible product was assigned to, and worked on solely by myself, Benjamin Hobbs- GRC Engineer, I know that I could not have completed this task without the men and women of the ACME Health Team and my professional contemporaries in the field of GRC Engineering. "We" bring you this solution for your consideration.
+* The "Why": While SOC 2 Trust Services Criteria and CMMC Level 2 are highly valuable business accelerators, they are "nice-to-haves" at this stage. Without strict adherence to HIPAA technical safeguards, operating this API is a legal liability.
 
-#### Choosing a Primary Framework
+* The Roadmap: This baseline establishes the floor. In the next 90 days, we will map these existing controls to CMMC Level 2 to unblock U.S. government sector contracts, followed by future sprints later in the year to conduct a SOC 2 readiness assessment.
 
-- We chose to use HIPAA as our primary framework because it most directly mapped to ACME Health proposed Patient Intake API. The industry that ACME is in (Healthcare) is primarily governed by HIPAA (Health Insurance Portability and Accountability Act).
+### 2.Remediation Strategy: Infrastructure as Security
 
-- As HIPAA is a law enacted by Congress, it is most prudent for ACME to comply with this first. This sprint we will address the [HIPAA Security Rule](https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html), a regulation mandating technical, physical, and administrative safeguards to protect electronic data. [The HIPAA Privacy Rule](https://www.hhs.gov/hipaa/for-professionals/privacy/laws-regulations/index.html) regulation will be addressed at a later sprint as indicated in the "LATER" section of this project write up.
+I chose to technically close all identified gaps directly within the Terraform baseline, rather than relying solely on Rego policies to catch them.
 
-- Considering the business goals of ACME Health to deliver this solution to both enterprises and federal government interests as well we will remain observant of SOC 2 Type II and CMMC Level 2 controls that map to our chosen HIPAA controls to make sure that we "build once, and map everywhere."
+* The "Why": Security should be realized in the system's actual configuration ("Secure by Default"). The infrastructure itself must dictate what is permitted. The Rego policy suite acts as an automated, audit-defensible verification layer to ensure those baselines are never regressed by future commits.
 
-### Control Coverage
+### 3.Evidence Vault & Immutability
 
-#### HIPAA 164.308(a)(7)
+The compliance evidence vault utilizes S3 Object Lock configured in GOVERNANCE mode rather than COMPLIANCE mode.
 
-#### HIPAA 164.312(a)(1)
+* The "Why": Crawl, walk, run. While COMPLIANCE mode offers ultimate audit-grade immutability, GOVERNANCE mode provides the necessary proof-of-concept protection while preventing irreversible lock-in. This allows the CTO and engineering teams to request architectural adjustments to the vault strategy before we lock the bucket configurations permanently for production.
 
-#### HIPAA 164.312(a)(2)(iv)
+### 4.Key Design Decisions & Trade-offs
 
-GAP-01 & GAP-03
+To meet the 30-day Minimum Viable Product (MVP) deadline without sacrificing auditability, several intentional architectural trade-offs were made:
 
-#### HIPAA 164.312(b) Switching to a REST API is the cleaner, more secure, and defensible architectural choice, especially when security and compliance are paramount
+* RESTful API Conversion for Native WAF: The starter workload was updated to utilize an AWS REST API rather than an HTTP API. This trade-off allowed for clean, native integration with AWS WAFv2 directly on the API Gateway stage, avoiding the complexity and global propagation delays of standing up a CloudFront distribution just to attach a firewall.
 
-We are choosing to present this change as a trade-off between architectural simplicity and security compliance.
+* AWS Region (us-east-1): Selected for rapid deployment, universal service availability, and future anticipation of CMMC Level 2 federal compliance requirements.
 
-#### HIPAA 164.312(e)(1)
+* Single AWS Account MVP: A single AWS account is utilized for this 30-day proof-of-concept. While a dedicated, isolated "Evidence/Audit" AWS account—completely inaccessible to CI/CD engineers—is the industry standard target state, implementing cross-account OIDC and KMS trust policies would have jeopardized the CTO's delivery deadline.
 
-GAP-03 & GAP-05
+* Manual Pipeline Approval Gate: The GitHub Actions pipeline requires a manual approval gate post-plan and post-policy check before applying to main. Automation is powerful, but organizational trust must be earned first. Once leadership is comfortable with the Rego policy enforcement, we can graduate to fully automated continuous deployment in future sprints.
 
-### Trade-Offs
+## Known Limitations & Gaps
 
-As there is not currently an official OSCAL (Open Security Controls Assessment Language) catlog for HIPAA, we will be citing the NIST SP 800-66 Rev. 2 titled (Implementing the HIPAA Security Rule) as the catalog.
+* OSCAL Catalog Source Mapping: Because NIST does not currently publish an official, machine-readable OSCAL catalog for the HIPAA Security Rule (SP 800-66 r2), the component-definition.json maintains a structural link to the NIST 800-53 Rev 5 catalog, while utilizing proper HIPAA control IDs internally.
 
-## NEXT (Next couple of sprints)
+* Future Sprint Opportunities: In a future sprint, Acme Health should author and open-source a dedicated HIPAA OSCAL catalog. This resolves the technical validation mismatch and positions the company as a differentiator and thought-leader in the healthcare GRC engineering space.
 
-## LATER
+* Lambda Egress Exception: The aws_security_group for the Lambda function contains an open egress rule (0.0.0.0/0). This is an accepted risk, documented in the IaC via tfsec:ignore, as the function relies on the NAT Gateway to reach the public AWS APIs for KMS and DynamoDB. Future iterations will replace this with dedicated, private VPC Endpoints. This current configuration will be noted in the ACME Health Risk Register with a treatment plan for future remediation.
 
-- Complete HIPAA Privacy Rule adoption using IAM (AWS Identity Center) Resources to layer on privacy protection using NIST SP 800-188 as the catalog.
+## Control Coverage
 
+HIPAA 164.308(a)(7)
 
-Lab4-4 ()
-WRITEUP.md section mapping each chain property (authenticity, integrity, timeliness, preservation) to the artifact that proves it.
-=== 1. Integrity (SHA-256) ===
-  OK (dd8a473f8c1dcd969e220296f180f8069d12564fa92ae9c488c40e2387e6adee)
-=== 2. Authenticity + timestamp (Cosign + Sigstore Rekor) ===
-Verified OK
-  OK (Cosign verified, Rekor entry exists)
-=== 3. Preservation (Object Lock retention) ===
-  OK (retain until 2026-04-27T18:30:33.696000+00:00)
+HIPAA 164.312(a)(1)
 
-CHAIN INTACT for run 24963918994
-(real sample)
-EVIDENCE_VAULT=cgep-lab-grc-evidence-vault-0748579d bash scripts/verify-evidence.sh 27634193583 --p
-rofile cgep
-download: s3://cgep-lab-grc-evidence-vault-0748579d/runs/27634193583/evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz.sha256 to ./evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz.sha256
-download: s3://cgep-lab-grc-evidence-vault-0748579d/runs/27634193583/receipt.json to ./receipt.json
-download: s3://cgep-lab-grc-evidence-vault-0748579d/runs/27634193583/evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz.sig.bundle to ./evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz.sig.bundle
-download: s3://cgep-lab-grc-evidence-vault-0748579d/runs/27634193583/evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz to ./evidence-27634193583-49b71ef308f5eece30b86e1ebdc354cad27611d5.tar.gz
-Verified OK
-CHAIN INTACT for run 27634193583
+HIPAA 164.312(a)(2)(iv)
+
+HIPAA 164.312(b)
+
+HIPAA 164.312(e)(1)
