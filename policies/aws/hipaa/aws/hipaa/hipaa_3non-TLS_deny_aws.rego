@@ -1,58 +1,45 @@
 # hipaa_3non-TLS_deny_aws.rego
 # METADATA
-# title: Secure Transport Enabled 
-# description: "S3 Bucket policies must explicitly deny non-TLS requests."
+# title: S3 Secure Transport Enforcement
+# description: "S3 buckets must enforce aws:SecureTransport to ensure encryption in transit."
 # custom:
 #   control_id: 164.312(e)(1)
 #   framework: nist-800-66 r2 (HIPAA Security Rule)
-#   severity: critical
-#   remediation: Add a bucket policy condition denying s3:* when aws:SecureTransport is false."
+#   severity: high
+#   remediation: "Attach an aws_s3_bucket_policy using a data.aws_iam_policy_document that denies requests where aws:SecureTransport is false."
 package aws.hipaa.tls_deny
 
 import rego.v1
 
-# Match by Terraform reference in `configuration`, not by literal bucket name in
-# `planned_values`. At plan time the bucket name is often "(known after apply)".
-default allow := false
-
-allow if {
-	count(deny) == 0
-}
-
 deny contains msg if {
-    some config in input.configuration.root_module.resources
-    config.type == "aws_s3_bucket_policy"
-
-    not enforces_secure_transport(config)
-
-    msg:= sprintf("HIPAA 164.312(e)(1): %v does not enforce aws:SecureTransport.", [config.address])
+    some bp in input.configuration.root_module.resources
+    bp.type == "aws_s3_bucket_policy"
+    
+    # Fails if the bucket policy doesn't link to a compliant data document
+    not policy_enforces_secure_transport(bp)
+    
+    msg := sprintf("HIPAA 164.312(e)(1): %v does not enforce aws:SecureTransport.", [bp.address])
 }
 
-# --- Helper Functions ---
-
-enforces_secure_transport(config) if {    
-    # Ensure the policy string contains the explicit deny check
-    # Access the policy from the configuration
-    policy_string := config.expressions.policy.constant_value
-    contains(policy_string, "aws:SecureTransport")
+policy_enforces_secure_transport(bp) if {
+    # 1. Find all IAM policy documents in the configuration
+    some doc in input.configuration.root_module.resources
+    doc.mode == "data"
+    doc.type == "aws_iam_policy_document"
+    
+    # 2. Confirm this specific document is referenced by the bucket policy
+    some ref in bp.expressions.policy.references
+    ref == doc.address
+    
+    # 3. Verify the document has the correct structural conditions
+    some stmt in doc.expressions.statement
+    stmt.effect.constant_value == "Deny"
+    
+    some cond in stmt.condition
+    cond.variable.constant_value == "aws:SecureTransport"
+    cond.test.constant_value == "Bool"
+    
+    some val in cond.values.constant_value
+    val == "false"
 }
 
-enforces_secure_transport(config) if {
-	# 1. Grab the references from the bucket policy
-	some ref in config.expressions.policy.references
-	startswith(ref, "data.aws_iam_policy_document.")
-	
-	# 2. Find the matching data block in the configuration
-	some data_block in input.configuration.root_module.resources
-	data_block.type == "aws_iam_policy_document"
-	startswith(ref, data_block.address)
-	
-	# 3. Check if the IAM document contains the SecureTransport condition
-	some statement in data_block.expressions.statement
-	some condition in statement.condition
-	
-	# 4. Verify it's a Deny effect looking for SecureTransport == false
-	statement.effect.constant_value == "Deny"
-	condition.variable.constant_value == "aws:SecureTransport"
-	condition.values.constant_value[_] == "false" 
-}

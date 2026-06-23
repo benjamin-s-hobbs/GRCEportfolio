@@ -14,7 +14,11 @@ import rego.v1
 
 # Match by Terraform reference in `configuration`, not by literal bucket name in
 # `planned_values`. At plan time the bucket name is often "(known after apply)".
+default allow := false
 
+allow if {
+	count(deny) == 0
+}
 
 
 deny contains msg if {

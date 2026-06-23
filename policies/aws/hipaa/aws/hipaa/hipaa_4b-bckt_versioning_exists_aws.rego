@@ -11,6 +11,13 @@ package aws.hipaa.bucket_versioning_exists
 
 import rego.v1
 
+# Match by Terraform reference in `configuration`, not by literal bucket name in
+# `planned_values`.
+default allow := false
+
+allow if {
+	count(deny) == 0
+}
 deny contains msg if {
     some bucket in input.configuration.root_module.resources
     bucket.type == "aws_s3_bucket"
@@ -48,3 +55,4 @@ bucket_has_versioning(bucket) if {
     
     v.name == bucket.name
 }
+
