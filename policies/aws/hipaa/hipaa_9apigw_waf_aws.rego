@@ -7,7 +7,7 @@
 #   framework: nist-800-66 r2 (HIPAA Security Rule)
 #   severity: high
 #   remediation: "Create an aws_wafv2_web_acl_association linking the API Gateway stage to a WAF ACL."
-package hipaa.apigw_waf
+package aws.hipaa.apigw_waf
 
 import rego.v1
 
