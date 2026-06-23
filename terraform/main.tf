@@ -104,8 +104,7 @@ resource "aws_nat_gateway" "main" {
   depends_on = [aws_internet_gateway.main]
 }
 
-# tfsec:ignore:aws-ec2-no-public-egress-sgr - Acceptable risk: Lambda 
-# requires internet egress via NAT to reach AWS service APIs. 
+# tfsec:ignore:aws-ec2-no-public-egress-sgr - Acceptable risk: Lambda requires internet egress via NAT to reach AWS service APIs. 
 resource "aws_security_group" "lambda_sg" {
   name        = "intake-lambda-sg"
   description = "Security group for Patient Intake API Lambda function"
@@ -113,6 +112,7 @@ resource "aws_security_group" "lambda_sg" {
   vpc_id      = aws_vpc.main.id 
 
   # Original Egress: Controls what the Lambda can reach out to over HTTPS.
+  # tfsec:ignore:aws-ec2-no-public-egress-sgr - Acceptable risk: Lambda requires internet egress via NAT to reach AWS service APIs.
   egress {
     description = "Allow outbound HTTPS traffic for AWS API interactions"
     from_port   = 443
