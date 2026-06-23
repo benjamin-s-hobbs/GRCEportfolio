@@ -79,7 +79,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.42.${count.index}.0/24"
   availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 
   tags                    = { Name = "${local.name_prefix}-public-${count.index}" }
 }
@@ -104,6 +104,8 @@ resource "aws_nat_gateway" "main" {
   depends_on = [aws_internet_gateway.main]
 }
 
+# tfsec:ignore:aws-ec2-no-public-egress-sgr - Acceptable risk: Lambda 
+# requires internet egress via NAT to reach AWS service APIs. 
 resource "aws_security_group" "lambda_sg" {
   name        = "intake-lambda-sg"
   description = "Security group for Patient Intake API Lambda function"
@@ -197,6 +199,7 @@ resource "aws_route_table_association" "public" {
   count          = 2
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
+
 }
 
 # HIPAA 164.312(a)(2)(iv) / SC-12 / SC-13 / SC-28: Cryptographic key establishment 
@@ -381,23 +384,19 @@ resource "aws_s3_bucket_versioning" "log" {
   }
 }
 # 1. Define the structured policy document
-data "aws_iam_policy_document" "log_policy" {
-  
+data "aws_iam_policy_document" "log_secure_transport" {
   statement {
-    sid       = "EnforceSecureTransport"
-    effect    = "Deny"
-    actions   = ["s3:*"]
+    sid    = "DenyInsecureTransport"
+    effect = "Deny"
+    actions = ["s3:*"]
     resources = [
       aws_s3_bucket.log.arn,
-      "${aws_s3_bucket.log.arn}/*"
+      "${aws_s3_bucket.log.arn}/*",
     ]
-
-    # A Principal of "*" in JSON translates to a type of "AWS" with an identifier of "*"
     principals {
       type        = "AWS"
       identifiers = ["*"]
     }
-
     condition {
       test     = "Bool"
       variable = "aws:SecureTransport"
@@ -406,10 +405,9 @@ data "aws_iam_policy_document" "log_policy" {
   }
 }
 
-# 2. Attach the fully compiled JSON to the bucket
 resource "aws_s3_bucket_policy" "log" {
-  bucket = local.log_name
-  policy = data.aws_iam_policy_document.log_policy.json
+  bucket = aws_s3_bucket.log.id
+  policy = data.aws_iam_policy_document.log_secure_transport.json
 }
 
 
@@ -476,10 +474,11 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "vault" {
   bucket = local.vault_name
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
       kms_master_key_id = aws_kms_key.key.arn
+      sse_algorithm     = "aws:kms"
     }
-    bucket_key_enabled = true
+    # Enabling bucket keys reduces KMS costs for high-traffic buckets
+    bucket_key_enabled = true 
   }
 }
 
