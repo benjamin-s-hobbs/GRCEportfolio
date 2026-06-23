@@ -374,26 +374,36 @@ resource "aws_s3_bucket_versioning" "log" {
     status = "Enabled"
   }
 }
+# 1. Define the structured policy document
+data "aws_iam_policy_document" "log_policy" {
+  
+  statement {
+    sid       = "EnforceSecureTransport"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [
+      aws_s3_bucket.log.arn,
+      "${aws_s3_bucket.log.arn}/*"
+    ]
+
+    # A Principal of "*" in JSON translates to a type of "AWS" with an identifier of "*"
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+# 2. Attach the fully compiled JSON to the bucket
 resource "aws_s3_bucket_policy" "log" {
   bucket = local.log_name
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Sid       = "EnforceSecureTransport"
-      Effect    = "Deny"
-      Principal = "*"
-      Action    = "s3:*"
-      Resource  = [ 
-        aws_s3_bucket.log.arn,
-        "${aws_s3_bucket.log.arn}/*"
-      ]
-      Condition = {
-        Bool = {
-          "aws:SecureTransport" = "false" # Blocks any request not using HTTPS
-        }
-      }
-    }]
-  })
+  policy = data.aws_iam_policy_document.log_policy.json
 }
 
 
@@ -477,66 +487,100 @@ resource "aws_s3_bucket_public_access_block" "vault" {
 
 # Refuse bucket deletion from anyone except the account root.
 data "aws_caller_identity" "current" {}
+
+# 1. Define the structured policy document
+data "aws_iam_policy_document" "vault" {
+  
+  statement {
+    sid       = "DenyBucketDeletion"
+    effect    = "Deny"
+    actions   = ["s3:DeleteBucket"]
+    resources = [
+      aws_s3_bucket.vault.arn,
+      "${aws_s3_bucket.vault.arn}/*"
+    ]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+
+    condition {
+      test     = "StringNotEquals"
+      variable = "aws:PrincipalArn"
+      values   = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+
+  statement {
+    sid       = "EnforceSecureTransport"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [
+      aws_s3_bucket.vault.arn,
+      "${aws_s3_bucket.vault.arn}/*"
+    ]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+
+  statement {
+    sid       = "AWSLogDeliveryAclCheck"
+    effect    = "Allow"
+    actions   = ["s3:GetBucketAcl"]
+    resources = [aws_s3_bucket.vault.arn]
+
+    principals {
+      type        = "Service"
+      identifiers = ["delivery.logs.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+
+  statement {
+    sid       = "AWSLogDeliveryWrite"
+    effect    = "Allow"
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.vault.arn}/*"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["delivery.logs.amazonaws.com"]
+    }
+
+    # You can safely stack condition blocks in Terraform
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+}
+
+# 2. Attach the fully compiled JSON to the bucket
 resource "aws_s3_bucket_policy" "vault" {
   bucket = local.vault_name
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Sid       = "DenyBucketDeletion"
-      Effect    = "Deny"
-      Principal = "*"
-      Action    = "s3:DeleteBucket"
-      Resource  = [ 
-        aws_s3_bucket.vault.arn,
-        "${aws_s3_bucket.vault.arn}/*"
-      ]
-      Condition = {
-        StringNotEquals = {
-          "aws:PrincipalArn" = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-        }
-      }
-    },
-    { 
-        Sid       = "EnforceSecureTransport"
-        Effect    = "Deny"
-        Principal = "*"
-        Action    = "s3:*"
-        Resource  = [
-          aws_s3_bucket.vault.arn,
-          "${aws_s3_bucket.vault.arn}/*"
-        ]
-        Condition = {
-          Bool    = {
-            "aws:SecureTransport" = "false"
-          }
-        }
-      },
-      {
-        Sid       = "AWSLogDeliveryAclCheck"
-        Effect    = "Allow"
-        Principal = { Service = "delivery.logs.amazonaws.com" }
-        Action    = "s3:GetBucketAcl"
-        Resource  = aws_s3_bucket.vault.arn
-        Condition = {
-          StringEquals = {
-            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
-          }
-        }
-      },
-      {
-        Sid       = "AWSLogDeliveryWrite"
-        Effect    = "Allow"
-        Principal = { Service = "delivery.logs.amazonaws.com" }
-        Action    = "s3:PutObject"
-        Resource  = "${aws_s3_bucket.vault.arn}/*"
-        Condition = {
-          StringEquals = {
-            "s3:x-amz-acl"      = "bucket-owner-full-control"
-            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
-          }
-        }
-      }]
-    })
+  policy = data.aws_iam_policy_document.vault.json
 }
 
 # enabling flow logs for the vpc and sending them to the vault
