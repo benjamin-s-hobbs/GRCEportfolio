@@ -21,3 +21,7 @@ crash.log
 !*.tfvars.example
 *.pub
 *.decoded
+
+# Evidence artifacts
+evidence-*.tar.gz
+*.tar.gz
