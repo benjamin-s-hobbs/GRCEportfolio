@@ -1,6 +1,6 @@
 # Terraform/Primitives
 
-## Compliant s3 (AWS)
+## Compliant gcs (GCP)
 
 This module enforces the following NIST SP 800-53r5 controls on a single S3 storage bucket in AWS:
 

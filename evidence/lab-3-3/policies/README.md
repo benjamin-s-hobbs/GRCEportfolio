@@ -17,6 +17,7 @@ control_id: AC-3
 "Set uniform_bucket_level_access = true, public_access_prevention = \"enforced\". For firewalls, narrow source_ranges or remove the rule."
 
 _____
+
 # CM-6 - Configuration Settings (required compliance labels)
 
 ## description

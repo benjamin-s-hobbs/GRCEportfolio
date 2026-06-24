@@ -25,7 +25,24 @@ The compliance evidence vault utilizes S3 Object Lock configured in GOVERNANCE m
 
 * The "Why": Crawl, walk, run. While COMPLIANCE mode offers ultimate audit-grade immutability, GOVERNANCE mode provides the necessary proof-of-concept protection while preventing irreversible lock-in. This allows the CTO and engineering teams to request architectural adjustments to the vault strategy before we lock the bucket configurations permanently for production.
 
-### 4.Key Design Decisions & Trade-offs
+### 4. Cryptographic Chain of Custody
+
+To ensure the output of the compliance pipeline is audit-grade, the deployment process enforces a strict cryptographic chain of custody. Every successful evaluation generates a locked, verifiable record of the infrastructure's state.
+
+The integrity of this chain is built upon four fundamental properties, each proven by specific artifacts generated during GitHub Actions Run `28046655979`:
+
+| Custody Property | Definition | Proving Artifact(s) |
+| :--- | :--- | :--- |
+| **Authenticity** | Cryptographic proof of origin and authorization. Validates *who* or *what* created the evidence. | **`*.sig.bundle`**: A Sigstore Cosign keyless signature bound to the GitHub Actions OIDC identity. It proves the evidence was generated exclusively by the trusted `grc-gate` CI/CD workflow, not a human operator. |
+| **Integrity** | Cryptographic proof that the evidence has not been tampered with or corrupted since its creation. | **`*.sha256`**: The SHA-256 checksum file. Verifying the `.tar.gz` bundle against this hash mathematically guarantees that not a single byte of the Terraform plan or Rego test results has been altered. |
+| **Timeliness** | Proof of provenance, linking the evidence to a specific moment in time and a specific codebase state. | **`receipt.json`**: This metadata file bridges the pipeline to the version control system. By capturing the exact `run_id` and Git `commit` SHA, it provides an immutable timeline of when the gap was closed and which code changes closed it. |
+| **Preservation** | Architectural proof that the evidence is protected against deletion, overwrite, or ransomware. | **S3 Object Lock (Governance Mode)**: The destination bucket (`cgep-lab-grc-evidence-vault-0748579d`) enforces Write Once, Read Many (WORM) storage. The `version_id` tracked in the receipt ensures the exact file iteration is preserved, even if subsequent runs upload files with identical names. |
+
+#### Verification Execution
+
+As demonstrated by the `capstone-chain.txt` output (located in GRCEportfolio/evidence/lab-7-1/capstone-chain.txt), an independent script can successfully pull the `receipt.json`, download the corresponding `evidence-*.tar.gz` bundle alongside its hash and signature, and mathematically validate the entire chain without requiring direct access to the GitHub repository or AWS control plane. The resulting `CHAIN INTACT` output confirms the baseline meets non-repudiation standards.
+
+### 5.Key Design Decisions & Trade-offs
 
 To meet the 30-day Minimum Viable Product (MVP) deadline without sacrificing auditability, several intentional architectural trade-offs were made:
 
