@@ -64,12 +64,22 @@ To meet the 30-day Minimum Viable Product (MVP) deadline without sacrificing aud
 
 ## Control Coverage
 
-HIPAA 164.308(a)(7)
+### HIPAA 164.308(a)(7)
 
-HIPAA 164.312(a)(1)
+* Standard: Contingency plan.  Establish (and implement as needed) policies and procedures for responding to an emergency or other occurrence (for example, fire, vandalism, system failure, and natural disaster) that damages systems that contain electronic protected health information.
 
-HIPAA 164.312(a)(2)(iv)
+### HIPAA 164.312(a)(1)
 
-HIPAA 164.312(b)
+* Standard: Access control.  Implement technical policies and procedures for electronic information systems that maintain electronic protected health information to allow access only to those persons or software programs that have been granted access rights as specified in § 164.308(a)(4).
 
-HIPAA 164.312(e)(1)
+### HIPAA 164.312(a)(2)(iv)
+
+* Encryption and decryption (Addressable).  Implement a mechanism to encrypt and decrypt electronic protected health information.
+
+### HIPAA 164.312(b)
+
+* Standard: Audit controls.  Implement hardware, software, and/or procedural mechanisms that record and examine activity in information systems that contain or use electronic protected health information.
+
+### HIPAA 164.312(e)(1)
+
+* Standard: Transmission security.  Implement technical security measures to guard against unauthorized access to electronic protected health information that is being transmitted over an electronic communications network.
