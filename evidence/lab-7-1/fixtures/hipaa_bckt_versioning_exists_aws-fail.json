@@ -1,0 +1,15 @@
+[
+	{
+		"filename": "broken-plan.json",
+		"namespace": "aws.hipaa.bucket_versioning_exists",
+		"successes": 0,
+		"failures": [
+			{
+				"msg": "HIPAA 164.308(a)(7): S3 bucket aws_s3_bucket.log is missing an associated aws_s3_bucket_versioning resource.",
+				"metadata": {
+					"query": "data.aws.hipaa.bucket_versioning_exists.deny"
+				}
+			}
+		]
+	}
+]
