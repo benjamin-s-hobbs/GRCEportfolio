@@ -1,8 +1,8 @@
 # outputs.tf
-output "bucket_arn"         { value = aws_s3_bucket.uploads.arn }
-output "bucket_name"        { value = aws_s3_bucket.uploads.arn }
-output "log_bucket_arn"     { value = aws_s3_bucket.log.arn }
-output "kms_key_arn"        { value = aws_kms_key.key.arn }
+output "bucket_arn" { value = aws_s3_bucket.uploads.arn }
+output "bucket_name" { value = aws_s3_bucket.uploads.arn }
+output "log_bucket_arn" { value = aws_s3_bucket.log.arn }
+output "kms_key_arn" { value = aws_kms_key.key.arn }
 
 output "encryption_algorithm" {
   description = "Server-side encryption algorithm in effect (SC-28 attestation)."
@@ -29,7 +29,7 @@ output "vault_name" {
 
 
 output "cloudwatch_log_key_arn" {
-  value = aws_kms_key.cloudwatch_log_key.arn
+  value       = aws_kms_key.cloudwatch_log_key.arn
   description = "Customer-managed KMS key ARN for CloudWatch log encryption."
 }
 

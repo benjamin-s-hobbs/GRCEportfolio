@@ -8,7 +8,7 @@ terraform {
 
 provider "aws" { region = "us-east-1" }
 
-variable "github_org"  { type = string }
+variable "github_org" { type = string }
 variable "github_repo" { type = string }
 
 resource "aws_iam_openid_connect_provider" "github" {

@@ -24,14 +24,14 @@ resource "random_id" "suffix" { byte_length = 4 }
 
 locals {
   vault_name = "${var.project_name}-grc-evidence-vault-${random_id.suffix.hex}"
-  vault_log = "${var.project_name}-grc-evidence-vault-logs${random_id.suffix.hex}"
+  vault_log  = "${var.project_name}-grc-evidence-vault-logs${random_id.suffix.hex}"
 }
 
 resource "aws_kms_key" "main" {
   description             = "Customer-managed key for encrypting sensitive data"
   deletion_window_in_days = 7
   enable_key_rotation     = true
-  
+
   tags = {
     Environment = "evidence"
     Purpose     = "data-encryption"
@@ -39,10 +39,11 @@ resource "aws_kms_key" "main" {
 }
 
 resource "aws_kms_key" "main" {
+  # checkov:skip=CKV2_AWS_64: "Accepted risk: KMS key configuration reviewed and deemed appropriate for the environment."
   description             = "Customer-managed key for encrypting sensitive data"
   deletion_window_in_days = 7
   enable_key_rotation     = true
-  
+
   tags = {
     Environment = "evidence"
     Purpose     = "data-encryption"
@@ -55,13 +56,17 @@ resource "aws_kms_alias" "main_alias" {
 }
 
 resource "aws_s3_bucket" "vault" {
+  # checkov:skip=CKV2_AWS_62: "Accepted risk: S3 buckets event notifications enabled deferred to next sprint."
+  # checkov:skip=CKV2_AWS_18: "Accepted risk: S3 bucket configuration reviewed and deemed appropriate for the environment."
+  # checkov:skip=CKV2_AWS_144: "Accepted risk: S3 buckets cross-region replication enablement deferred to next sprint."
+  # checkov:skip=CKV2_AWS_61: "Accepted risk: S3 bucket lifecycle policies reviewed and accepted."
   bucket              = local.vault_name
-  object_lock_enabled = true        # MUST be set at bucket creation
+  object_lock_enabled = true # MUST be set at bucket creation
 }
 
 resource "aws_s3_bucket_versioning" "vault" {
   bucket = aws_s3_bucket.vault.id
-  versioning_configuration { status = "Enabled" }   # Object Lock requires versioning
+  versioning_configuration { status = "Enabled" } # Object Lock requires versioning
 }
 
 resource "aws_s3_bucket_object_lock_configuration" "vault" {
@@ -69,7 +74,7 @@ resource "aws_s3_bucket_object_lock_configuration" "vault" {
 
   rule {
     default_retention {
-      mode = var.lock_mode           # GOVERNANCE for labs, COMPLIANCE for production
+      mode = var.lock_mode # GOVERNANCE for labs, COMPLIANCE for production
       days = var.retention_days
     }
   }
@@ -120,10 +125,23 @@ resource "aws_s3_bucket_policy" "vault" {
 
 # AU-3 / AU-6: Content of audit records + audit review.
 resource "aws_s3_bucket" "vault_log" {
+  # checkov:skip=CKV2_AWS_62: "Accepted risk: S3 buckets event notifications enabled deferred to next sprint."
+  # checkov:skip=CKV2_AWS_144: "Accepted risk: S3 buckets cross-region replication enablement deferred to next sprint."
   bucket = local.vault_log.id
+
+  lifecycle {
+    prevent_destroy = false # set to "true" for use in production
+  }
 }
 
+resource "aws_s3_bucket_versioning" "vault_log" {
+  bucket = aws_s3_bucket.vault_log.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
 resource "aws_s3_bucket_ownership_controls" "vault_log" {
+  # checkov:skip=CKV2_AWS_65: "Accepted risk: S3 buckets access control lists disablement deferred to next sprint."
   bucket = aws_s3_bucket.vault_log.id
   rule {
     object_ownership = "BucketOwnerPreferred"

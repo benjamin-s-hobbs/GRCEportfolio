@@ -38,7 +38,7 @@ resource "google_kms_crypto_key" "key" {
   rotation_period = "7776000s"
 
   lifecycle {
-    prevent_destroy = false  # set true in production
+    prevent_destroy = false # set true in production
   }
 }
 

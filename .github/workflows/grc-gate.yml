@@ -115,6 +115,17 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          jq --arg time "$TIMESTAMP" \
+             --arg run "$RUN_ID" \
+             --arg sha "$SHA" \
+             '.["component-definition"].metadata["last-modified"] = $time | .["component-definition"].metadata.remarks = "Automated GRC pipeline run: \($run) / Commit: \($sha)"' \
+             ../OSCAL/component-definitions/compliant-s3-v1/component-definition.json > temp.json && mv temp.json ../OSCAL/component-definitions/compliant-s3-v1/component-definition.json
+          
+          mkdir -p evidence/OSCAL
+          cp -r ../OSCAL/* evidence/OSCAL/
+
           BUNDLE="evidence-${RUN_ID}-${SHA}.tar.gz"
           ( cd evidence && tar czf "../${BUNDLE}" . )
           shasum -a 256 "${BUNDLE}" | awk '{print $1}' > "${BUNDLE}.sha256"
@@ -138,11 +149,3 @@ jobs:
           }
           EOF
           aws s3 cp receipt.json "s3://${VAULT}/${KEY_PREFIX}/receipt.json"
-
-      - name: Upload evidence artifact
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: grc-evidence-${{ github.run_id }}
-          path: evidence/
-          retention-days: 90
