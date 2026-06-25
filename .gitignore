@@ -21,6 +21,7 @@ crash.log
 !*.tfvars.example
 *.pub
 *.decoded
+*plan*.json
 
 # Evidence artifacts
 evidence-*.tar.gz
