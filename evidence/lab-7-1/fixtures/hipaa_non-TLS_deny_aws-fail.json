@@ -1,0 +1,15 @@
+[
+	{
+		"filename": "cap-plan.json",
+		"namespace": "aws.hipaa.tls_deny",
+		"successes": 0,
+		"failures": [
+			{
+				"msg": "HIPAA 164.312(e)(1): aws_s3_bucket_policy.uploads does not enforce aws:SecureTransport.",
+				"metadata": {
+					"query": "data.aws.hipaa.tls_deny.deny"
+				}
+			}
+		]
+	}
+]

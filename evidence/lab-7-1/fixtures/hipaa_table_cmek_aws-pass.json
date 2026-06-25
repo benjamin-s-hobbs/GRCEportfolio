@@ -1,0 +1,7 @@
+[
+	{
+		"filename": "cap-plan.json",
+		"namespace": "aws.hipaa.resource_cmek",
+		"successes": 1
+	}
+]

@@ -1,0 +1,7 @@
+[
+	{
+		"filename": "cap-plan.json",
+		"namespace": "aws.hipaa.least_privilege",
+		"successes": 1
+	}
+]

@@ -1,0 +1,7 @@
+[
+	{
+		"filename": "cap-plan.json",
+		"namespace": "aws.hipaa.bucket_versioning_exists",
+		"successes": 1
+	}
+]

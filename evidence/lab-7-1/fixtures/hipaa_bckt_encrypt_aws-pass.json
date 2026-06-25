@@ -1,0 +1,7 @@
+[
+	{
+		"filename": "cap-plan.json",
+		"namespace": "aws.hipaa.s3_cmk_encryption",
+		"successes": 3
+	}
+]
