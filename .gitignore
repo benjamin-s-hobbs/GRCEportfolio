@@ -6,7 +6,7 @@
 tfplan
 *.tfplan
 crash.log
-
+.terraform/*/*.*
 
 # Lambda build artifacts
 **/lambda/handler.zip
