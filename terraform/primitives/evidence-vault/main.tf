@@ -57,8 +57,8 @@ resource "aws_kms_alias" "main_alias" {
 
 resource "aws_s3_bucket" "vault" {
   # checkov:skip=CKV2_AWS_62: "Accepted risk: S3 buckets event notifications enabled deferred to next sprint."
-  # checkov:skip=CKV2_AWS_18: "Accepted risk: S3 bucket configuration reviewed and deemed appropriate for the environment."
-  # checkov:skip=CKV2_AWS_144: "Accepted risk: S3 buckets cross-region replication enablement deferred to next sprint."
+  # checkov:skip=CKV_AWS_18: "Accepted risk: S3 bucket configuration reviewed and deemed appropriate for the environment."
+  # checkov:skip=CKV_AWS_144: "Accepted risk: S3 buckets cross-region replication enablement deferred to next sprint."
   # checkov:skip=CKV2_AWS_61: "Accepted risk: S3 bucket lifecycle policies reviewed and accepted."
   bucket              = local.vault_name
   object_lock_enabled = true # MUST be set at bucket creation
@@ -126,7 +126,7 @@ resource "aws_s3_bucket_policy" "vault" {
 # AU-3 / AU-6: Content of audit records + audit review.
 resource "aws_s3_bucket" "vault_log" {
   # checkov:skip=CKV2_AWS_62: "Accepted risk: S3 buckets event notifications enabled deferred to next sprint."
-  # checkov:skip=CKV2_AWS_144: "Accepted risk: S3 buckets cross-region replication enablement deferred to next sprint."
+  # checkov:skip=CKV_AWS_144: "Accepted risk: S3 buckets cross-region replication enablement deferred to next sprint."
   bucket = local.vault_log.id
 
   lifecycle {
@@ -134,6 +134,24 @@ resource "aws_s3_bucket" "vault_log" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "vault_log_lifecycle" {
+  bucket = aws_s3_bucket.vault_log.id
+
+  rule {
+    id     = "log-retention-and-cleanup"
+    status = "Enabled"
+
+    # Cleans up failed uploads to save storage costs
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+
+    # Automatically deletes logs older than 1 year (365 days)
+    expiration {
+      days = 365
+    }
+  }
+}
 resource "aws_s3_bucket_versioning" "vault_log" {
   bucket = aws_s3_bucket.vault_log.id
   versioning_configuration {

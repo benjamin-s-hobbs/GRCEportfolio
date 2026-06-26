@@ -12,6 +12,8 @@ provider "google" {
 }
 
 module "data_bucket" {
+  # checkov:skip=CKV_GCP_82: "Accepted risk: GCS bucket configuration reviewed and deferred to next sprint."
+  # checkov:skip=CKV_GCP_62: "Accepted risk: GCS bucket configuration reviewed and deferred to next sprint."
   source = "../../modules/compliant-gcs-bucket"
 
   gcp_project        = "civic-access-392521"

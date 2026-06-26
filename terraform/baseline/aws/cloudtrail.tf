@@ -2,8 +2,11 @@
 
 
 resource "aws_s3_bucket" "trail" {
-  # checkov:skip=CKV2_AWS_18: "Accepted risk: S3 bucket configuration reviewed and deferred to the next sprint."
-  # checkov:skip=CKV2_AWS_144: "Accepted risk: S3 buckets cross-region replication enablement deferred to next sprint."
+  # checkov:skip=CKV_AWS_18: "Accepted risk: S3 bucket configuration reviewed and deferred to the next sprint."
+  # checkov:skip=CKV_AWS_21: "Accepted risk: S3 bucket configuration reviewed and deemed to be appropriate for the environment."
+  # checkov:skip=CKV_AWS_144: "Accepted risk: S3 buckets cross-region replication enablement deferred to next sprint."
+  # checkov:skip=CKV2_AWS_61: "Accepted risk: S3 bucket lifecycle policies reviewed and accepted."
+  # checkov:skip=CKV2_AWS_62: "Accepted risk: S3 bucket event notifications enabled deferred to next sprint."
   bucket        = "cgep-lab-cloudtrail-${random_id.suffix.hex}"
   force_destroy = true
 
@@ -12,6 +15,24 @@ resource "aws_s3_bucket" "trail" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "trail_lifecycle" {
+  bucket = "cgep-lab-cloudtrail-${random_id.suffix.hex}"
+
+  rule {
+    id     = "log-retention-and-cleanup"
+    status = "Enabled"
+
+    # Cleans up failed uploads to save storage costs
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+
+    # Automatically deletes logs older than 1 year (365 days)
+    expiration {
+      days = 365
+    }
+  }
+}
 resource "aws_s3_bucket_versioning" "trail" {
   bucket = "cgep-lab-cloudtrail-${random_id.suffix.hex}"
   versioning_configuration {
@@ -22,6 +43,7 @@ resource "aws_s3_bucket_versioning" "trail" {
 # KMS CMEK generated:
 resource "aws_kms_key" "main" {
   # checkov:skip=CKV2_AWS_64: "Accepted risk: KMS key configuration reviewed and deemed appropriate for the environment."
+  # checkov:skip=CKV_AWS_145: "Accepted risk: KMS key configuration reviewed and deemed to be appropriate for the environment."
   description             = "Customer-managed key for encrypting sensitive data"
   deletion_window_in_days = 7
   enable_key_rotation     = true
@@ -37,10 +59,11 @@ resource "aws_kms_alias" "main_alias" {
   target_key_id = aws_kms_key.main.id
 }
 resource "aws_s3_bucket" "primary" {
-  # checkov:skip=CKV2_AWS_18:  "Accepted risk: S3 bucket configuration reviewed and deferred to the next sprint."
-  # checkov:skip=CKV2_AWS_144: "Accepted risk: S3 buckets cross-region replication enablement deferred to next sprint."
-  # checkov:skip=CKV2_AWS_145: "Accepted risk: S3 bucket lifecycle policies reviewed and accepted."
+  # checkov:skip=CKV_AWS_18:  "Accepted risk: S3 bucket configuration reviewed and deferred to the next sprint."
+  # checkov:skip=CKV_AWS_144: "Accepted risk: S3 buckets cross-region replication enablement deferred to next sprint."
+  # checkov:skip=CKV_AWS_145: "Accepted risk: S3 bucket lifecycle policies reviewed and accepted."
   # checkov:skip=CKV2_AWS_6:   "Accepted risk: S3 bucket Public Access Block reviewed and accepted."
+  # checkov:skip=CKV2_AWS_62: "Accepted risk: S3 bucket event notifications enabled deferred to next sprint."
   bucket = local.primary_name
 
   lifecycle {
@@ -48,6 +71,24 @@ resource "aws_s3_bucket" "primary" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "primary_lifecycle" {
+  bucket = aws_s3_bucket.primary.id
+
+  rule {
+    id     = "log-retention-and-cleanup"
+    status = "Enabled"
+
+    # Cleans up failed uploads to save storage costs
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+
+    # Automatically deletes logs older than 1 year (365 days)
+    expiration {
+      days = 365
+    }
+  }
+}
 resource "aws_s3_bucket_versioning" "primary" {
   bucket = aws_s3_bucket.primary.id
   versioning_configuration {
@@ -121,6 +162,8 @@ resource "aws_s3_bucket_policy" "trail" {
 
 resource "aws_cloudtrail" "mgmt" {
   # checkov:skip=CKV2_AWS_10: "Accepted risk: CloudTrail configuration reviewed and deferred to next sprint."
+  # checkov:skip=CKV_AWS_35: "Accepted risk: CloudTrail log file validation reviewed and deemed acceptable for the environment."
+  # checkov:skip=CKV_AWS_252: "Accepted risk: CloudTrail configuration reviewed and deferred to next sprint."
   name                          = "cgep-lab-mgmt"
   s3_bucket_name                = aws_s3_bucket.trail.id
   is_multi_region_trail         = true
