@@ -1,4 +1,4 @@
-# GRCEportfolio: Automated Governance & Compliance Pipeline
+# grc-gate: Automated Compliance CI/CD Pipeline
 
 ## 📌 Executive Summary
 
