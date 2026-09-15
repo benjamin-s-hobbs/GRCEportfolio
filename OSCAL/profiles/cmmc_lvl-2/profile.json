@@ -1,0 +1,17 @@
+{
+  "profile": {
+    "uuid": "43e2a2fb-4395-46eb-b70c-2651475c404f",
+    "metadata": {
+      "title": "CMMC Level 2 Configuration Profile",
+      "last-modified": "2026-08-13T12:00:00Z",
+      "version": "1.0",
+      "oscal-version": "1.2.1"
+    },
+    "imports": [
+      {
+        "href": "trestle://catalogs/nist_800_171-r3/catalog.json",
+        "include-all": {}
+      }
+    ]
+  }
+}

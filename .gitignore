@@ -23,6 +23,10 @@ crash.log
 *.decoded
 *plan*.json
 
+# OSCAL (compliance-trestle)
+.trestle/
+*.keep
+
 # Evidence artifacts
 evidence-*.tar.gz
 *.tar.gz
