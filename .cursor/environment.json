@@ -1,0 +1,4 @@
+{
+  "name": "grc-gate compliance pipeline",
+  "install": "./.cursor/install.sh"
+}
